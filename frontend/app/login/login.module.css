@@ -1,0 +1,199 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  overflow: hidden;
+  padding: 48px 24px;
+}
+
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cPurpleLg {
+  width: 164px;
+  height: 164px;
+  top: 152px;
+  left: -82px;
+  background: #4800ff;
+  opacity: 1;
+}
+
+.cBlackTop {
+  width: 243px;
+  height: 243px;
+  top: -183px;
+  left: 1029px;
+  background: #000000;
+  opacity: 1;
+}
+
+.cBlackMid {
+  width: 116px;
+  height: 116px;
+  top: 704px;
+  left: 177px;
+  background: #000000;
+  opacity: 1;
+}
+
+.cPurpleBottom {
+  width: 243px;
+  height: 243px;
+  top: 887px;
+  left: 601px;
+  background: #4800ff;
+  opacity: 1;
+}
+
+.cPurpleSm {
+  width: 85px;
+  height: 85px;
+  top: 799px;
+  left: 1253px;
+  background: #4800ff;
+  opacity: 1;
+}
+
+.purpleRightWrap {
+  position: absolute;
+  width: 677px;
+  height: 585px;
+  top: 152px;
+  left: calc(100% - 338.5px);
+  background: #4800ff;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.routeSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.dashedPath {
+  stroke: #ffffff;
+  stroke-width: 2.5;
+  stroke-dasharray: 12 12;
+  stroke-linecap: round;
+  opacity: 0.82;
+}
+
+.truckRunner {
+  filter: drop-shadow(0 2px 3px rgba(19, 0, 70, 0.24));
+}
+
+@media (max-width: 1100px) {
+  .purpleRightWrap {
+    width: 440px;
+    height: 380px;
+    left: calc(100% - 170px);
+  }
+}
+
+@media (max-width: 760px) {
+  .cPurpleLg {
+    width: 80px;
+    height: 80px;
+    top: 48px;
+    left: -40px;
+  }
+
+  .purpleRightWrap {
+    width: 300px;
+    height: 259px;
+    top: -80px;
+    left: calc(100% - 95px);
+  }
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  text-align: center;
+}
+
+.logo {
+  margin: 0 0 12px;
+}
+
+.logo img {
+  display: block;
+  width: min(100%, 445px);
+  height: auto;
+  margin-inline: auto;
+}
+
+.title {
+  margin: 0 0 48px;
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: #4800ff;
+}
+
+.form {
+  text-align: left;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.field {
+  margin-bottom: 28px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  color: #111;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #111;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 1rem;
+  outline: none;
+}
+
+.input:focus {
+  box-shadow: 0 0 0 2px rgba(72, 0, 255, 0.25);
+}
+
+.submit {
+  margin-top: 8px;
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 4px;
+  background: #111;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-bottom: 16px;
+  color: #b00020;
+  font-size: 0.95rem;
+  text-align: center;
+}

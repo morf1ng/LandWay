@@ -3,11 +3,13 @@
 import { loginRequest, setToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import styles from "./login.module.css";
+import { TruckOrbit } from "./TruckOrbit";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("logist");
-  const [password, setPassword] = useState("demo123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,38 +29,53 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ maxWidth: 360, margin: "48px auto", padding: 16 }}>
-      <h1>Smart Caspian Transit</h1>
-      <p className="muted">Вход в демонстрационную платформу</p>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={onSubmit}>
-        <p>
-          <label>
-            Логин
-            <br />
-            <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-          </label>
-        </p>
-        <p>
-          <label>
-            Пароль
-            <br />
+    <div className={styles.page}>
+      <span className={`${styles.circle} ${styles.cPurpleLg}`} aria-hidden />
+      <span className={`${styles.circle} ${styles.cBlackTop}`} aria-hidden />
+      <span className={`${styles.circle} ${styles.cBlackMid}`} aria-hidden />
+      <span className={`${styles.circle} ${styles.cPurpleBottom}`} aria-hidden />
+      <span className={`${styles.circle} ${styles.cPurpleSm}`} aria-hidden />
+      <TruckOrbit />
+
+      <div className={styles.card}>
+        <h1 className={styles.logo}><img src="/landway-wordmark.svg" alt="LANDWAY" width={445} height={58} /></h1>
+        <p className={styles.title}>Вход в систему</p>
+
+        {error && <p className={styles.error}>{error}</p>}
+
+        <form className={styles.form} onSubmit={onSubmit}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="username">
+              Логин
+            </label>
             <input
+              id="username"
+              className={styles.input}
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="password">
+              Пароль
+            </label>
+            <input
+              id="password"
+              className={styles.input}
               type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-          </label>
-        </p>
-        <button type="submit" disabled={loading}>
-          {loading ? "Вход…" : "Войти"}
-        </button>
-      </form>
-      <p className="muted" style={{ marginTop: 24 }}>
-        Демо-доступ: <strong>logist</strong> / <strong>demo123</strong> или <strong>admin</strong> / <strong>admin123</strong>
-      </p>
-    </main>
+          </div>
+          <button type="submit" className={styles.submit} disabled={loading}>
+            {loading ? "Вход…" : "Войти"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }

@@ -269,7 +269,7 @@ def meta(data: dict) -> dict:
             {"id": "rail,road,sea", "value": ["rail", "road", "sea"], "label": "поезд + грузовик + корабль"},
         ],
         "emissionFactors": data["emissionFactors"],
-        "storage": "Демонстрационные данные хранятся в файле приложения. Модели PostgreSQL подготовлены, подключение базы выключено.",
+        "storage": "Данные хранятся в PostgreSQL. Стартовые грузы не подставляются — создавайте перевозки вручную.",
     }
 
 

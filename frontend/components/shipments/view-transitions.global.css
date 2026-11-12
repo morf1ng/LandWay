@@ -1,0 +1,120 @@
+:root {
+  --motion: cubic-bezier(0.22, 0.82, 0.24, 1);
+}
+
+[data-shared-shell] {
+  view-transition-name: shipment-shell;
+}
+
+[data-shared-map] {
+  view-transition-name: shipment-map;
+}
+
+::view-transition-group(shipment-shell),
+::view-transition-group(shipment-map) {
+  animation-duration: 540ms;
+  animation-timing-function: var(--motion);
+}
+
+::view-transition-group(shipment-map) {
+  z-index: 3;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #eef0e9;
+}
+
+::view-transition-group(shipment-shell) {
+  z-index: 2;
+  border-radius: 17px;
+  overflow: hidden;
+}
+
+::view-transition-image-pair(shipment-map) {
+  isolation: auto;
+}
+
+::view-transition-old(shipment-map),
+::view-transition-new(shipment-map),
+::view-transition-old(shipment-shell),
+::view-transition-new(shipment-shell) {
+  animation-duration: 540ms;
+  animation-timing-function: var(--motion);
+  mix-blend-mode: normal;
+  height: 100%;
+  object-fit: cover;
+}
+
+::view-transition-old(shipment-shell),
+::view-transition-new(shipment-shell) {
+  object-fit: none;
+  object-position: left bottom;
+}
+
+::view-transition-old(shipment-map),
+::view-transition-old(shipment-shell) {
+  animation-name: shipment-shared-out;
+}
+
+::view-transition-new(shipment-map),
+::view-transition-new(shipment-shell) {
+  animation-name: shipment-shared-in;
+}
+
+::view-transition-old(root) {
+  animation-duration: 190ms;
+}
+
+::view-transition-new(root) {
+  animation-duration: 380ms;
+}
+
+[data-navigation="enter"] .reveal {
+  animation: shipment-reveal-in 0.26s ease-out 0.32s both;
+}
+
+@keyframes shipment-shared-out {
+  0%,
+  14% {
+    opacity: 1;
+  }
+  82%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes shipment-shared-in {
+  0% {
+    opacity: 0;
+  }
+  65%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes shipment-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(shipment-shell),
+  ::view-transition-group(shipment-map),
+  ::view-transition-old(shipment-map),
+  ::view-transition-new(shipment-map),
+  ::view-transition-old(shipment-shell),
+  ::view-transition-new(shipment-shell) {
+    animation-duration: 1ms;
+  }
+
+  [data-navigation="enter"] .reveal {
+    animation: none;
+  }
+}

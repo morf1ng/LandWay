@@ -14,6 +14,8 @@ type Notification = {
   href: string;
 };
 
+const severityLabel: Record<string, string> = { high: "Высокий риск", medium: "Внимание", low: "Информация" };
+
 export default function NotificationsPage() {
   const [items, setItems] = useState<Notification[]>([]);
   const [error, setError] = useState("");
@@ -41,22 +43,31 @@ export default function NotificationsPage() {
   if (error) return <p className="error">{error}</p>;
 
   return (
-    <>
+    <div className="appPage">
       <h1>Уведомления</h1>
-      <button type="button" onClick={readAll}>
-        Отметить все прочитанными
-      </button>
-      <ul>
-        {items.map((n) => (
-          <li key={n.id} style={{ opacity: n.read ? 0.6 : 1 }}>
-            [{n.severity}] {n.createdAt} —{" "}
-            <Link href={n.href} onClick={() => readOne(n.id)}>
-              {n.title}
-            </Link>
-            : {n.description}
-          </li>
-        ))}
-      </ul>
-    </>
+      <div className="actionRow">
+        <span className="muted">Непрочитанных: {items.filter((item) => !item.read).length}</span>
+        <button type="button" onClick={readAll} disabled={!items.some((item) => !item.read)}>
+          Отметить все прочитанными
+        </button>
+      </div>
+      <section>
+        <h2>События по грузам</h2>
+        {items.length === 0 ? <p className="muted">Новых событий пока нет.</p> : (
+          <ul className="notificationList">
+            {items.map((n) => (
+              <li key={n.id} className="notificationItem" data-read={n.read}>
+                <div className="notificationMeta">
+                  <span className="notificationSeverity" data-severity={n.severity}>{severityLabel[n.severity] ?? "Событие"}</span>
+                  <time>{new Date(n.createdAt).toLocaleString("ru-RU")}</time>
+                </div>
+                <Link href={n.href} onClick={() => readOne(n.id)}>{n.title} →</Link>
+                <span>{n.description}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   );
 }

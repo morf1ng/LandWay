@@ -26,7 +26,7 @@ def _mutate(mutator):
 
 @public_router.get("/health")
 def health():
-    return {"ok": True, "storage": "json", "database": False, "auth": True}
+    return {"ok": True, "storage": "postgresql", "database": True, "auth": True}
 
 
 @router.get("/meta")

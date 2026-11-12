@@ -53,9 +53,24 @@ export async function logoutRequest() {
   clearToken();
 }
 
-export async function fetchMe(): Promise<AuthUser> {
-  const res = await fetch(`${API}/auth/me`, { headers: authHeaders(), cache: "no-store" });
-  if (!res.ok) throw new Error("unauthorized");
-  const data = (await res.json()) as { user: AuthUser };
-  return data.user;
+export async function fetchMe(timeoutMs = 10_000): Promise<AuthUser> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API}/auth/me`, {
+      headers: authHeaders(),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error("unauthorized");
+    const data = (await res.json()) as { user: AuthUser };
+    return data.user;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("backend_timeout");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }

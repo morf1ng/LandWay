@@ -1,7 +1,7 @@
 node_modules
 .next
 backend/.venv
-backend/data/store.json
+backend/data/
 backend/uploads/*
 !backend/uploads/.gitkeep
 __pycache__

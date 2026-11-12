@@ -1,10 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ShipmentCard } from "@/components/shipments/ShipmentCard";
+import { ShipmentListRows } from "@/components/shipments/ShipmentListRows";
+import { ViewToggle } from "@/components/shipments/ViewToggle";
+import cardStyles from "@/components/shipments/shipmentCards.module.css";
+import { useShipmentCardNavigation } from "@/hooks/useShipmentCardNavigation";
 import { apiGet, apiPost } from "@/lib/api";
 import { riskLabel, statusLabel, transportLabel } from "@/lib/labels";
+import { toShipmentCardData } from "@/lib/shipments/adapters";
+import { defaultListPrefs, loadListPrefs, saveListPrefs, type ShipmentListPrefs } from "@/lib/shipments/listStorage";
 
 type Shipment = {
   id: string;
@@ -35,14 +41,11 @@ export default function ShipmentsPage() {
   const [rows, setRows] = useState<Shipment[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [risk, setRisk] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [transport, setTransport] = useState("");
-  const [deliveryBefore, setDeliveryBefore] = useState("");
+  const [prefs, setPrefs] = useState<ShipmentListPrefs>(defaultListPrefs);
+
+  const { sharedId, openCard } = useShipmentCardNavigation("shipments", prefs);
 
   const [form, setForm] = useState({
     name: "",
@@ -59,10 +62,20 @@ export default function ShipmentsPage() {
     notes: "",
   });
 
+  useEffect(() => {
+    setPrefs(loadListPrefs());
+  }, []);
+
+  useEffect(() => {
+    saveListPrefs(prefs);
+  }, [prefs]);
+
   function reload() {
+    setLoading(true);
     apiGet<Shipment[]>("/shipments")
       .then(setRows)
-      .catch((e) => setError(String(e.message || e)));
+      .catch((e) => setError(String(e.message || e)))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -72,16 +85,16 @@ export default function ShipmentsPage() {
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
-      if (search && !`${row.id} ${row.name}`.toLowerCase().includes(search.toLowerCase())) return false;
-      if (status && row.status !== status) return false;
-      if (risk && row.riskLevel !== risk) return false;
-      if (origin && row.origin !== origin) return false;
-      if (destination && row.destination !== destination) return false;
-      if (transport && row.currentTransport !== transport) return false;
-      if (deliveryBefore && row.plannedArrival > deliveryBefore) return false;
+      if (prefs.search && !`${row.id} ${row.name}`.toLowerCase().includes(prefs.search.toLowerCase())) return false;
+      if (prefs.status && row.status !== prefs.status) return false;
+      if (prefs.risk && row.riskLevel !== prefs.risk) return false;
+      if (prefs.origin && row.origin !== prefs.origin) return false;
+      if (prefs.destination && row.destination !== prefs.destination) return false;
+      if (prefs.transport && row.currentTransport !== prefs.transport) return false;
+      if (prefs.deliveryBefore && row.plannedArrival > prefs.deliveryBefore) return false;
       return true;
     });
-  }, [rows, search, status, risk, origin, destination, transport, deliveryBefore]);
+  }, [rows, prefs]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -100,6 +113,10 @@ export default function ShipmentsPage() {
     } catch (err) {
       setError(String((err as Error).message));
     }
+  }
+
+  function setPref<K extends keyof ShipmentListPrefs>(key: K, value: ShipmentListPrefs[K]) {
+    setPrefs((current) => ({ ...current, [key]: value }));
   }
 
   return (
@@ -236,9 +253,13 @@ export default function ShipmentsPage() {
 
       <section style={{ marginTop: 16 }}>
         <h2>Фильтры</h2>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          <input placeholder="Поиск по номеру или названию" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+        <div className={cardStyles.filtersRow}>
+          <input
+            placeholder="Поиск по номеру или названию"
+            value={prefs.search}
+            onChange={(e) => setPref("search", e.target.value)}
+          />
+          <select value={prefs.status} onChange={(e) => setPref("status", e.target.value)}>
             <option value="">Все статусы</option>
             {Object.entries(statusLabel).map(([k, v]) => (
               <option key={k} value={k}>
@@ -246,14 +267,14 @@ export default function ShipmentsPage() {
               </option>
             ))}
           </select>
-          <select value={risk} onChange={(e) => setRisk(e.target.value)}>
+          <select value={prefs.risk} onChange={(e) => setPref("risk", e.target.value)}>
             <option value="">Все риски</option>
             <option value="low">низкий</option>
             <option value="medium">средний</option>
             <option value="high">высокий</option>
             <option value="none">—</option>
           </select>
-          <select value={origin} onChange={(e) => setOrigin(e.target.value)}>
+          <select value={prefs.origin} onChange={(e) => setPref("origin", e.target.value)}>
             <option value="">Любой откуда</option>
             {meta?.ports.map((p) => (
               <option key={p.name} value={p.name}>
@@ -261,7 +282,7 @@ export default function ShipmentsPage() {
               </option>
             ))}
           </select>
-          <select value={destination} onChange={(e) => setDestination(e.target.value)}>
+          <select value={prefs.destination} onChange={(e) => setPref("destination", e.target.value)}>
             <option value="">Любой куда</option>
             {meta?.ports.map((p) => (
               <option key={p.name} value={p.name}>
@@ -269,7 +290,7 @@ export default function ShipmentsPage() {
               </option>
             ))}
           </select>
-          <select value={transport} onChange={(e) => setTransport(e.target.value)}>
+          <select value={prefs.transport} onChange={(e) => setPref("transport", e.target.value)}>
             <option value="">Любой транспорт</option>
             {Object.entries(transportLabel).map(([k, v]) => (
               <option key={k} value={k}>
@@ -279,60 +300,52 @@ export default function ShipmentsPage() {
           </select>
           <input
             placeholder="Доставка до (ISO дата)"
-            value={deliveryBefore}
-            onChange={(e) => setDeliveryBefore(e.target.value)}
+            value={prefs.deliveryBefore}
+            onChange={(e) => setPref("deliveryBefore", e.target.value)}
           />
         </div>
       </section>
 
-      <section>
-        <h2>Список ({filtered.length})</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Номер</th>
-              <th>Название</th>
-              <th>Категория</th>
-              <th>Вес</th>
-              <th>Конт.</th>
-              <th>Отправитель</th>
-              <th>Получатель</th>
-              <th>Откуда</th>
-              <th>Куда</th>
-              <th>Транспорт</th>
-              <th>Статус</th>
-              <th>Отправление</th>
-              <th>План</th>
-              <th>Прогноз</th>
-              <th>Риск</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <Link href={`/shipments/${row.id}`}>{row.id}</Link>
-                </td>
-                <td>{row.name}</td>
-                <td>{row.category}</td>
-                <td>{row.weight}</td>
-                <td>{row.containerCount}</td>
-                <td>{row.sender}</td>
-                <td>{row.receiver}</td>
-                <td>{row.origin}</td>
-                <td>{row.destination}</td>
-                <td>{transportLabel[row.currentTransport] ?? row.currentTransport}</td>
-                <td>{statusLabel[row.status] ?? row.status}</td>
-                <td>{row.plannedDeparture}</td>
-                <td>{row.plannedArrival}</td>
-                <td>{row.predictedArrival}</td>
-                <td>
-                  {riskLabel[row.riskLevel] ?? row.riskLevel} ({row.probability}%)
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <section id="list-view">
+        <div className={cardStyles.sectionHead}>
+          <h2>
+            Список{" "}
+            <span className={cardStyles.sectionHeadMeta} aria-live="polite">
+              {loading ? "…" : `· ${filtered.length}`}
+            </span>
+          </h2>
+          <ViewToggle value={prefs.view} onChange={(view) => setPref("view", view)} />
+        </div>
+        {loading && <p role="status">Загрузка грузов…</p>}
+        {!loading && filtered.length === 0 && (
+          <p className={cardStyles.emptyState}>
+            {rows.length === 0 ? "Грузов пока нет." : "По выбранным фильтрам ничего не найдено."}
+          </p>
+        )}
+        {!loading && filtered.length > 0 && prefs.view === "cards" && (
+          <div className={cardStyles.cardGrid}>
+            {filtered.map((row) => {
+              const item = toShipmentCardData(row);
+              const href = `/shipments/${encodeURIComponent(item.id)}`;
+              return (
+                <ShipmentCard
+                  key={item.id}
+                  item={item}
+                  href={href}
+                  shared={sharedId === item.id}
+                  onActivate={openCard}
+                />
+              );
+            })}
+          </div>
+        )}
+        {!loading && filtered.length > 0 && prefs.view === "list" && (
+          <ShipmentListRows
+            items={filtered.map(toShipmentCardData)}
+            hrefFor={(id) => `/shipments/${encodeURIComponent(id)}`}
+            onActivate={openCard}
+          />
+        )}
       </section>
     </>
   );

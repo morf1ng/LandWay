@@ -30,6 +30,12 @@ type Meta = {
   documentTypes: Array<{ id: string; label: string }>;
 };
 
+function formatDate(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+}
+
 function CustomsInner() {
   const search = useSearchParams();
   const initialShipment = search.get("shipment") ?? "SCT-1004";
@@ -102,9 +108,9 @@ function CustomsInner() {
   const shipmentIds = Array.from(new Set(documents.map((d) => d.shipmentId)));
 
   return (
-    <>
+    <div className="appPage">
       <h1>Таможня и документы</h1>
-      <p className="muted">Демонстрация pre-clearance. Проверка не заменяет таможенную экспертизу.</p>
+      <p className="pageLead">Демонстрация предварительной проверки. Решение о выпуске принимает внешняя сторона.</p>
       {error && <p className="error">{error}</p>}
 
       <section>
@@ -130,8 +136,8 @@ function CustomsInner() {
                   <Link href={`/shipments/${d.shipmentId}`}>{d.shipmentId}</Link>
                 </td>
                 <td>{d.name}</td>
-                <td>{d.type}</td>
-                <td>{d.uploadedAt ?? "—"}</td>
+                <td>{meta?.documentTypes.find((item) => item.id === d.type)?.label ?? d.type}</td>
+                <td>{formatDate(d.uploadedAt)}</td>
                 <td>{docStatusLabel[d.status] ?? d.status}</td>
                 <td>{d.comment}</td>
                 <td>
@@ -185,12 +191,12 @@ function CustomsInner() {
               <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             </label>
           </p>
-          <button type="submit">Загрузить</button>
+          <button type="submit" className="primaryAction">Загрузить</button>
         </form>
       </section>
 
       <section>
-        <h2>Проверка и pre-clearance</h2>
+        <h2>Проверка и предварительное оформление</h2>
         <p>
           Груз:{" "}
           <select value={shipmentId} onChange={(e) => setShipmentId(e.target.value)}>
@@ -204,7 +210,7 @@ function CustomsInner() {
         <button type="button" onClick={checkDocs}>
           Проверить документы
         </button>{" "}
-        <button type="button" onClick={preclear}>
+        <button type="button" className="primaryAction" onClick={preclear}>
           Отправить на предварительное оформление
         </button>
         {checkResult && (
@@ -239,7 +245,7 @@ function CustomsInner() {
           <tbody>
             {journal.map((j) => (
               <tr key={j.id}>
-                <td>{j.at}</td>
+                <td>{formatDate(j.at)}</td>
                 <td>{j.shipmentId}</td>
                 <td>{j.title}</td>
                 <td>{j.result}</td>
@@ -249,7 +255,7 @@ function CustomsInner() {
           </tbody>
         </table>
       </section>
-    </>
+    </div>
   );
 }
 

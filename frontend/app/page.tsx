@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import styles from "./dashboard.module.css";
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
-import { riskLabel, statusLabel } from "@/lib/labels";
+import { RecentShipments } from "@/components/shipments/RecentShipments";
+import { toShipmentCardData } from "@/lib/shipments/adapters";
 
 type Dashboard = {
   stats: {
@@ -56,57 +58,33 @@ export default function HomePage() {
   const s = data.stats;
 
   return (
-    <>
+    <div className={styles.dashboard}>
       <h1>Главная панель</h1>
       {data.lastRecalculatedAt && (
-        <p className="muted">Последний пересчёт прогноза: {data.lastRecalculatedAt}</p>
+        <p className={styles.updated}>Последний пересчёт прогноза: {new Date(data.lastRecalculatedAt).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</p>
       )}
 
-      <section>
-        <h2>Общая статистика</h2>
-        <ul>
-          <li>Всего грузов: {s.total}</li>
-          <li>В пути: {s.inTransit}</li>
-          <li>Доставлено: {s.delivered}</li>
-          <li>С риском задержки: {s.atRisk}</li>
-          <li>Ожидают отправки: {s.awaiting}</li>
-        </ul>
+      <section className={styles.metrics} aria-label="Сводка по грузам">
+        {[
+          { title: "Всего грузов", value: s.total, note: `Ожидают отправки: ${s.awaiting}`, tone: "plain" },
+          { title: "В пути", value: s.inTransit, tone: "dark" },
+          { title: "Доставлено", value: s.delivered, tone: "plain" },
+          { title: "С риском задержки", value: s.atRisk, note: data.warnings[0]?.title, tone: "accent" },
+        ].map(({ title, value, note, tone }) => (
+          <article className={styles.metric} data-tone={tone} key={title}>
+            <h2>{title}</h2>
+            {note && <p>{note}</p>}
+            <strong>{value}</strong>
+          </article>
+        ))}
       </section>
 
-      <section>
-        <h2>Последние перевозки</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Номер</th>
-              <th>Название</th>
-              <th>Откуда</th>
-              <th>Куда</th>
-              <th>Статус</th>
-              <th>Прогноз доставки</th>
-              <th>Риск</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.recent.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <Link href={`/shipments/${row.id}`}>{row.id}</Link>
-                </td>
-                <td>{row.name}</td>
-                <td>{row.origin}</td>
-                <td>{row.destination}</td>
-                <td>{statusLabel[row.status] ?? row.status}</td>
-                <td>{row.predictedArrival}</td>
-                <td>
-                  {riskLabel[row.riskLevel] ?? row.riskLevel} ({row.probability}%)
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <section className={styles.shipments} aria-labelledby="shipments-title">
+        <RecentShipments titleId="shipments-title" items={data.recent.map(toShipmentCardData)} />
       </section>
 
+      <details className={styles.details}>
+        <summary>Предупреждения и сводка по портам</summary>
       <section>
         <h2>Предупреждения</h2>
         {data.warnings.length === 0 ? (
@@ -149,6 +127,7 @@ export default function HomePage() {
           </tbody>
         </table>
       </section>
-    </>
+      </details>
+    </div>
   );
 }

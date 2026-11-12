@@ -22,6 +22,11 @@ type Analytics = {
   }>;
 };
 
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" });
+}
+
 function AnalyticsInner() {
   const search = useSearchParams();
   const focus = search.get("shipment");
@@ -58,19 +63,19 @@ function AnalyticsInner() {
   const detail = data.rows.find((r) => r.id === detailId);
 
   return (
-    <>
+    <div className="appPage">
       <h1>ИИ-аналитика и прогнозирование</h1>
-      <p className="muted">{data.disclaimer}</p>
-      <p>
-        <button type="button" onClick={recalculate}>
+      <p className="pageLead">{data.disclaimer}</p>
+      <div className="actionRow">
+        <button type="button" className="primaryAction" onClick={recalculate}>
           Пересчитать прогноз
         </button>
-        {data.calculatedAt && <span className="muted"> Последний расчёт: {data.calculatedAt}</span>}
-      </p>
+        {data.calculatedAt && <span className="muted">Последний расчёт: {formatDate(data.calculatedAt)}</span>}
+      </div>
 
       <section>
         <h2>Все грузы</h2>
-        <table>
+        <table className="analyticsTable">
           <thead>
             <tr>
               <th>ID</th>
@@ -84,18 +89,18 @@ function AnalyticsInner() {
           <tbody>
             {data.rows.map((row) => (
               <tr key={row.id}>
-                <td>
-                  <button type="button" onClick={() => setDetailId(row.id)} style={{ border: 0, background: "none", padding: 0 }}>
+                <td data-label="Груз">
+                  <button type="button" onClick={() => setDetailId(row.id)}>
                     {row.id}
                   </button>
                 </td>
-                <td>{row.route}</td>
-                <td>
+                <td data-label="Маршрут">{row.route}</td>
+                <td data-label="Вероятность">
                   {row.probability}% ({riskLabel[row.riskLevel] ?? row.riskLevel})
                 </td>
-                <td>{row.reasons.join("; ")}</td>
-                <td>{row.estimatedDelay}</td>
-                <td>{row.recommendation}</td>
+                <td data-label="Причины">{row.reasons.join("; ")}</td>
+                <td data-label="Задержка">{row.estimatedDelay} ч</td>
+                <td data-label="Рекомендация">{row.recommendation}</td>
               </tr>
             ))}
           </tbody>
@@ -108,9 +113,9 @@ function AnalyticsInner() {
           <ul>
             <li>Вероятность задержки: {detail.probability}%</li>
             <li>Уровень: {riskLabel[detail.riskLevel] ?? detail.riskLevel}</li>
-            <li>Прогноз доставки: {detail.predictedArrival}</li>
+            <li>Прогноз доставки: {formatDate(detail.predictedArrival)}</li>
             <li>Задержка: {detail.estimatedDelay} ч</li>
-            <li>Расчёт: {detail.calculatedAt}</li>
+            <li>Расчёт: {formatDate(detail.calculatedAt)}</li>
           </ul>
           <p>Причины:</p>
           <ul>
@@ -126,7 +131,7 @@ function AnalyticsInner() {
           </Link>
         </section>
       )}
-    </>
+    </div>
   );
 }
 

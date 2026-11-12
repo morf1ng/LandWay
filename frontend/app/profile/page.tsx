@@ -32,36 +32,30 @@ export default function ProfilePage() {
   if (!profile) return <p>Загрузка…</p>;
 
   return (
-    <>
+    <div className="appPage">
       <h1>Профиль пользователя</h1>
-      <form onSubmit={onSave} style={{ maxWidth: 400 }}>
-        <p>
+      <section>
+        <h2>Данные демологиста</h2>
+        <form onSubmit={onSave} className="formGrid">
           <label>
             Имя
-            <br />
             <input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
           </label>
-        </p>
-        <p>
           <label>
             Роль
-            <br />
             <input value={profile.role} onChange={(e) => setProfile({ ...profile, role: e.target.value })} />
           </label>
-        </p>
-        <p>
           <label>
             Организация
-            <br />
             <input
               value={profile.organization}
               onChange={(e) => setProfile({ ...profile, organization: e.target.value })}
             />
           </label>
-        </p>
-        <button type="submit">Сохранить</button>
-      </form>
-      {ok && <p>{ok}</p>}
-    </>
+          <button type="submit" className="primaryAction">Сохранить</button>
+        </form>
+        {ok && <p className="successMessage">{ok}</p>}
+      </section>
+    </div>
   );
 }

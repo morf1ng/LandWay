@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
-import { riskLabel } from "@/lib/labels";
+import { riskLabel, transportLabel } from "@/lib/labels";
 
 type CatalogRow = {
   templateId: string;
@@ -84,14 +84,14 @@ function RoutesInner() {
   const alts = options.filter((o) => !o.current);
 
   return (
-    <>
+    <div className="appPage">
       <h1>Маршруты</h1>
       {error && <p className="error">{error}</p>}
-      {message && <p>{message}</p>}
+      {message && <p className="successMessage">{message}</p>}
 
       <section>
         <h2>Каталог маршрутов между портами</h2>
-        <table>
+        <table className="stackedTable">
           <thead>
             <tr>
               <th>Маршрут</th>
@@ -109,18 +109,18 @@ function RoutesInner() {
           <tbody>
             {catalog.map((row) => (
               <tr key={row.templateId}>
-                <td>{row.name}</td>
-                <td>{row.origin}</td>
-                <td>{row.destination}</td>
-                <td>{row.sequence.join(" + ")}</td>
-                <td>{row.stageCount}</td>
-                <td>{row.distance}</td>
-                <td>{row.durationHours}</td>
-                <td>{row.cost}</td>
-                <td>
+                <td data-label="Маршрут">{row.name}</td>
+                <td data-label="Откуда">{row.origin}</td>
+                <td data-label="Куда">{row.destination}</td>
+                <td data-label="Транспорт">{row.sequence.map((mode) => transportLabel[mode] ?? mode).join(" + ")}</td>
+                <td data-label="Этапов">{row.stageCount}</td>
+                <td data-label="Расстояние">{row.distance.toLocaleString("ru-RU")} км</td>
+                <td data-label="Время">{row.durationHours} ч</td>
+                <td data-label="Стоимость">{row.cost.toLocaleString("ru-RU")} ₽</td>
+                <td data-label="Риск">
                   {row.probability}% ({riskLabel[row.riskLevel]})
                 </td>
-                <td>{row.carbonPerTon}</td>
+                <td data-label="CO₂/т">{row.carbonPerTon} кг</td>
               </tr>
             ))}
           </tbody>
@@ -166,7 +166,7 @@ function RoutesInner() {
           </Link>
         </p>
       </section>
-    </>
+    </div>
   );
 }
 
@@ -184,7 +184,7 @@ function ComparisonTable({ row }: { row: Option }) {
         </tr>
         <tr>
           <th>Стоимость</th>
-          <td>{row.cost}</td>
+          <td>{row.cost.toLocaleString("ru-RU")} ₽</td>
         </tr>
         <tr>
           <th>Риск</th>
@@ -215,7 +215,7 @@ function ComparisonTable({ row }: { row: Option }) {
 
 function AltRouteBlock({ row, current, onSelect }: { row: Option; current?: Option; onSelect: () => void }) {
   return (
-    <div style={{ marginBottom: 16, borderTop: "1px solid #ccc", paddingTop: 8 }}>
+    <div className="optionCard">
       <ComparisonTable row={row} />
       {current && (
         <p className="muted">
@@ -225,7 +225,7 @@ function AltRouteBlock({ row, current, onSelect }: { row: Option; current?: Opti
         </p>
       )}
       {row.selectable ? (
-        <button type="button" onClick={onSelect}>
+        <button type="button" className="primaryAction" onClick={onSelect}>
           Выбрать маршрут
         </button>
       ) : (

@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sct-postgres
+    environment:
+      POSTGRES_USER: sct
+      POSTGRES_PASSWORD: sct
+      POSTGRES_DB: smart_caspian_transit
+    ports:
+      - "5432:5432"
+    volumes:
+      - sct_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sct -d smart_caspian_transit"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sct_pg_data:

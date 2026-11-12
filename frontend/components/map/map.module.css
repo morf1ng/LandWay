@@ -1,0 +1,242 @@
+.page {
+  max-width: 1200px;
+}
+
+.lead {
+  margin: 6px 0 18px;
+  color: #605b68;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.filterSelect {
+  border: 1px solid #e3e1e9;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #17151c;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.mapCard {
+  border: 1px solid #e3e1e9;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #eef0e9;
+  box-shadow: 0 4px 24px #1c123012;
+  min-height: 480px;
+}
+
+.mapHost {
+  width: 100%;
+  height: min(58vh, 520px);
+  min-height: 420px;
+}
+
+.mapHost :global(.leaflet-container) {
+  font-family: system-ui, sans-serif;
+  background: #e8ebe3;
+}
+
+.mapHost :global(.port-marker) {
+  background: #fff;
+  border: 2px solid #4800ff;
+  border-radius: 50%;
+  box-shadow: 0 2px 10px #4800ff33;
+}
+
+.mapHost :global(.port-marker-inner) {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4800ff;
+  margin: 3px;
+}
+
+.mapHost :global(.city-marker) {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8a8494;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px #00000022;
+}
+
+.mapHost :global(.cargo-marker) {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px #1c123028;
+  transform: rotate(45deg);
+}
+
+.mapHost :global(.place-label) {
+  background: #ffffffe8;
+  border: none;
+  border-radius: 8px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 650;
+  color: #3b3644;
+  box-shadow: 0 1px 4px #1c123015;
+}
+
+.mapHost :global(.sct-map-brand) {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: linear-gradient(145deg, #6b2bff 0%, #4800ff 100%);
+  box-shadow: 0 0 0 1px #4800ff44;
+  vertical-align: 0;
+  transform: rotate(45deg);
+}
+
+.mapHost :global(.leaflet-control-attribution) {
+  font-size: 11px;
+  line-height: 1.35;
+  background: #ffffffd9;
+  backdrop-filter: blur(4px);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  background: #fff;
+  border-top: 1px solid #e3e1e9;
+  font-size: 11px;
+  color: #51495c;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.side {
+  display: grid;
+  gap: 14px;
+}
+
+.panel {
+  border: 1px solid #e3e1e9;
+  border-radius: 18px;
+  background: #fff;
+  padding: 16px 18px;
+  box-shadow: 0 2px 8px #1c12300b;
+}
+
+.panel h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.shipmentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.shipmentList button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #faf9fc;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.shipmentList button:hover {
+  border-color: #d5c8f5;
+}
+
+.shipmentList button[data-active="true"] {
+  border-color: #4800ff;
+  background: #f3effc;
+}
+
+.shipmentList strong {
+  display: block;
+  font-size: 13px;
+}
+
+.shipmentList small {
+  color: #66606e;
+  font-size: 11px;
+}
+
+.stageTable {
+  width: 100%;
+  border: 0;
+}
+
+.stageTable th,
+.stageTable td {
+  border: none;
+  border-bottom: 1px solid #efedf2;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.stageTable tr {
+  cursor: pointer;
+}
+
+.stageTable tr:hover td {
+  background: #faf9fc;
+}
+
+.stageTable tr[data-active="true"] td {
+  background: #f3effc;
+}
+
+.mutedNote {
+  font-size: 12px;
+  color: #66606e;
+  margin: 8px 0 0;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mapHost {
+    min-height: 360px;
+  }
+}

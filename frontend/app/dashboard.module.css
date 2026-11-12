@@ -1,0 +1,226 @@
+
+.dashboard {
+  padding: clamp(16px, 7vh, 68px) clamp(4px, 3.2vw, 48px) 36px;
+  color: #080808;
+}
+
+.dashboard h1 {
+  font-size: clamp(27px, 2.8vw, 42px);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.12;
+  margin: 0;
+}
+
+.updated {
+  margin: 8px 0 0;
+  color: #666;
+  font-size: clamp(13px, 1.2vw, 17px);
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: clamp(24px, 7vh, 72px) 0 28px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  min-height: 130px;
+  padding: 14px clamp(10px, 1.55vw, 24px);
+  border: 2px solid #080808;
+  border-radius: 13px;
+  overflow-wrap: anywhere;
+}
+
+.metric[data-tone="dark"] {
+  background: #080808;
+  color: white;
+}
+
+.metric[data-tone="accent"] {
+  background: #4800ff;
+  border-color: #4800ff;
+  color: white;
+}
+
+.metric h2 {
+  margin: 0;
+  font-size: clamp(14px, 1.25vw, 19px);
+  line-height: 1.2;
+}
+
+.metric p {
+  margin: 4px 0;
+  font-size: 12px;
+}
+
+.metric[data-tone="plain"] p {
+  color: #666;
+}
+
+.metric strong {
+  margin-top: auto;
+  padding-top: 8px;
+  font-size: clamp(32px, 3.5vw, 54px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.details summary {
+  color: #555;
+  cursor: pointer;
+}
+
+.details[open] section {
+  overflow-x: auto;
+}
+
+@media (max-width: 1120px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .metrics { grid-template-columns: 1fr; }
+  .metric { min-height: 105px; }
+}
+
+.shipments {
+  margin: 0 0 22px;
+}
+
+.shipments > h2 {
+  margin: 0 0 14px;
+  font-size: clamp(20px, 1.7vw, 26px);
+  line-height: 1.2;
+}
+
+.shipmentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.shipmentCard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 205px;
+  padding: 18px;
+  border: 1px solid #e3e1e9;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 2px 8px #1c12300b;
+  color: #17151c;
+  text-decoration: none;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.shipmentCard:hover {
+  transform: translateY(-3px);
+  border-color: #c9b5eb;
+  box-shadow: 0 8px 22px #1c123018;
+}
+
+.shipmentCard:focus-visible {
+  outline: 2px solid #4800ff;
+  outline-offset: 3px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 19px;
+}
+
+.shipmentId {
+  color: #5d5768;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status {
+  max-width: 65%;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #f2f0f7;
+  color: #51495c;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.status[data-status="in_transit"],
+.status[data-status="delivered"] {
+  background: #eaf4ee;
+  color: #24603f;
+}
+
+.status[data-status="delayed"],
+.status[data-status="documents_review"] {
+  background: #fff0dc;
+  color: #80510f;
+}
+
+.shipmentRoute {
+  display: block;
+  font-size: clamp(16px, 1.3vw, 20px);
+  letter-spacing: -.025em;
+  line-height: 1.2;
+}
+
+.shipmentRoute span {
+  color: #746f7a;
+}
+
+.cargoName {
+  display: block;
+  margin-top: 6px;
+  color: #5e5a65;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.cardBottom {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #efedf2;
+}
+
+.cardBottom > span {
+  display: grid;
+  gap: 3px;
+}
+
+.cardBottom small {
+  color: #66606e;
+  font-size: 11px;
+}
+
+.cardBottom b {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.empty {
+  color: #605b68;
+}
+
+@media (max-width: 1100px) {
+  .shipmentGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .shipmentGrid { grid-template-columns: 1fr; }
+}

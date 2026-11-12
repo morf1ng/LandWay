@@ -72,9 +72,9 @@ function EcologyInner() {
   if (!data) return <p>Загрузка…</p>;
 
   return (
-    <>
+    <div className="appPage">
       <h1>Экологическая аналитика</h1>
-      <p className="muted">{data.disclaimer}</p>
+      <p className="pageLead">{data.disclaimer}</p>
       <p>
         {data.formula} (кг CO₂ / т·км: поезд {data.factors.rail}, море {data.factors.sea}, авто {data.factors.road})
       </p>
@@ -109,9 +109,9 @@ function EcologyInner() {
               onChange={(e) => setFactors({ ...factors, road: Number(e.target.value) })}
             />
           </label>{" "}
-          <button type="submit">Сохранить коэффициенты</button>
+          <button type="submit" className="primaryAction">Сохранить коэффициенты</button>
         </form>
-        {saved && <p>{saved}</p>}
+        {saved && <p className="successMessage">{saved}</p>}
       </section>
 
       <section>
@@ -128,7 +128,7 @@ function EcologyInner() {
 
       <section>
         <h2>Сводка</h2>
-        <ul>
+        <ul className="statsList">
           <li>Общий углеродный след: {data.total} кг CO₂</li>
           <li>Грузов в расчёте: {data.shipmentCount}</li>
           <li>
@@ -193,7 +193,7 @@ function EcologyInner() {
           </tbody>
         </table>
       </section>
-    </>
+    </div>
   );
 }
 

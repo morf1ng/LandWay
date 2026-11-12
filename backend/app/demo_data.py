@@ -1,14 +1,14 @@
-"""Демонстрационные грузы коридора Север — Юг. Файлы документов пишутся на диск."""
+"""Шесть тестовых грузов коридора (сценарии хакатона)."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
-from app.catalog import DEFAULT_EMISSION_FACTORS, PORTS, document_label
-from app.services.auth import default_users
-
-UPLOADS = Path(__file__).resolve().parents[1] / "uploads"
+from app.catalog import REQUIRED_DOCUMENT_TYPES, document_label
+from app.models import ShipmentRow
+from app.persistence.mapper import load_state, save_state
+from app.services.engine import recalculate
 
 
 def _stage(
@@ -43,27 +43,6 @@ def _stage(
     }
 
 
-def _write_file(document_id: str, shipment_id: str, type_id: str, number: str, issued_at: str) -> dict:
-    UPLOADS.mkdir(parents=True, exist_ok=True)
-    stored = f"{document_id}.txt"
-    text = (
-        f"Документ: {document_label(type_id)}\n"
-        f"Груз: {shipment_id}\n"
-        f"Номер: {number}\n"
-        f"Дата: {issued_at}\n"
-        "Демонстрационный файл прототипа Smart Caspian Transit.\n"
-        "Файл не является таможенным или юридическим документом.\n"
-    )
-    path = UPLOADS / stored
-    path.write_text(text, encoding="utf-8")
-    return {
-        "storedName": stored,
-        "originalName": f"{document_label(type_id)} {shipment_id}.txt",
-        "size": path.stat().st_size,
-        "mime": "text/plain",
-    }
-
-
 def _document(
     shipment_id: str,
     type_id: str,
@@ -74,28 +53,35 @@ def _document(
     comment: str,
 ) -> dict:
     document_id = f"doc-{shipment_id}-{type_id}"
-    fields = {"number": number, "issuedAt": issued_at}
+    file_meta = None
+    if with_file:
+        file_meta = {
+            "storedName": f"{document_id}.txt",
+            "originalName": f"{document_label(type_id)} {shipment_id}.txt",
+            "size": 120,
+            "mime": "text/plain",
+        }
     return {
         "id": document_id,
         "shipmentId": shipment_id,
         "name": document_label(type_id),
         "type": type_id,
-        "file": _write_file(document_id, shipment_id, type_id, number or "—", issued_at or "—") if with_file else None,
+        "file": file_meta,
         "status": status,
         "uploadedAt": "2026-11-09T10:00:00" if with_file else None,
         "comment": comment,
-        "fields": fields,
+        "fields": {"number": number, "issuedAt": issued_at},
     }
 
 
 def _full_docs(shipment_id: str, issued_at: str) -> list[dict]:
     return [
         _document(shipment_id, type_id, "verified", f"{type_id[:3].upper()}-{shipment_id[-4:]}", issued_at, True, "Комплект в порядке.")
-        for type_id in ("waybill", "invoice", "packing", "declaration", "origin")
+        for type_id in REQUIRED_DOCUMENT_TYPES
     ]
 
 
-def build_seed() -> dict:
+def build_demo_payload() -> dict:
     shipments = [
         {
             "id": "SCT-1001",
@@ -266,7 +252,7 @@ def build_seed() -> dict:
             "templateId": "makh-anz-road-sea",
             "transportSequence": ["road", "sea"],
             "riskScore": 0,
-            "notes": "Отправление запланировано на 13 ноября. Сертификат происхождения ещё не проверен.",
+            "notes": "Отправление запланировано на 13 ноября.",
             "preclearanceStatus": None,
             "preclearanceAt": None,
             "extraEvents": [],
@@ -288,8 +274,8 @@ def build_seed() -> dict:
             "estimatedCost": 430000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1001", 1, "Саратов", "Астрахань", "rail", "2026-11-10T08:00:00", "2026-11-11T12:00:00", 520, "delayed", "Поезд следует с опозданием относительно нитки графика.", 30),
-                _stage("rt-SCT-1001", 2, "Астрахань", "Энзели", "sea", "2026-11-11T12:00:00", "2026-11-14T18:00:00", 760, "pending", "Морской рейс назначен раньше, чем прогноз прибытия поезда с запасом.", 0, None, "2026-11-12T20:00:00"),
+                _stage("rt-SCT-1001", 1, "Саратов", "Астрахань", "rail", "2026-11-10T08:00:00", "2026-11-11T12:00:00", 520, "delayed", "Поезд следует с опозданием.", 30),
+                _stage("rt-SCT-1001", 2, "Астрахань", "Энзели", "sea", "2026-11-11T12:00:00", "2026-11-14T18:00:00", 760, "pending", "Морской рейс при коротком окне пересадки.", 0, None, "2026-11-12T20:00:00"),
             ],
         },
         {
@@ -304,8 +290,8 @@ def build_seed() -> dict:
             "estimatedCost": 310000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1002", 1, "Каспийск", "Махачкала", "road", "2026-11-11T06:00:00", "2026-11-11T08:00:00", 25, "completed", "Автомобильное плечо выполнено по графику.", 0, "2026-11-11T08:00:00"),
-                _stage("rt-SCT-1002", 2, "Махачкала", "Энзели", "sea", "2026-11-11T08:00:00", "2026-11-13T18:00:00", 740, "in_progress", "Судно в море, расписание соблюдается.", 0, None, "2026-11-11T16:00:00"),
+                _stage("rt-SCT-1002", 1, "Каспийск", "Махачкала", "road", "2026-11-11T06:00:00", "2026-11-11T08:00:00", 25, "completed", "Автоплечо выполнено.", 0, "2026-11-11T08:00:00"),
+                _stage("rt-SCT-1002", 2, "Махачкала", "Энзели", "sea", "2026-11-11T08:00:00", "2026-11-13T18:00:00", 740, "in_progress", "Судно в море.", 0, None, "2026-11-11T16:00:00"),
             ],
         },
         {
@@ -320,8 +306,8 @@ def build_seed() -> dict:
             "estimatedCost": 490000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1003", 1, "Волгоград", "Астрахань", "rail", "2026-11-09T20:00:00", "2026-11-10T12:00:00", 380, "completed", "Поезд прибыл в порт по расписанию.", 0, "2026-11-10T12:00:00"),
-                _stage("rt-SCT-1003", 2, "Астрахань", "Амирабад", "sea", "2026-11-10T12:00:00", "2026-11-16T08:00:00", 980, "pending", "Выход судна зависит от ветра и волнения.", 0, None, "2026-11-12T22:00:00"),
+                _stage("rt-SCT-1003", 1, "Волгоград", "Астрахань", "rail", "2026-11-09T20:00:00", "2026-11-10T12:00:00", 380, "completed", "Поезд прибыл в порт.", 0, "2026-11-10T12:00:00"),
+                _stage("rt-SCT-1003", 2, "Астрахань", "Амирабад", "sea", "2026-11-10T12:00:00", "2026-11-16T08:00:00", 980, "pending", "Ожидание погодного окна.", 0, None, "2026-11-12T22:00:00"),
             ],
         },
         {
@@ -336,8 +322,8 @@ def build_seed() -> dict:
             "estimatedCost": 360000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1004", 1, "Каспийск", "Махачкала", "road", "2026-11-12T07:00:00", "2026-11-12T09:00:00", 25, "completed", "Груз доставлен в порт автотранспортом.", 0, "2026-11-12T09:00:00"),
-                _stage("rt-SCT-1004", 2, "Махачкала", "Амирабад", "sea", "2026-11-12T09:00:00", "2026-11-17T12:00:00", 1050, "pending", "Погрузка ожидает комплект документов.", 0, None, "2026-11-15T08:00:00"),
+                _stage("rt-SCT-1004", 1, "Каспийск", "Махачкала", "road", "2026-11-12T07:00:00", "2026-11-12T09:00:00", 25, "completed", "Груз в порту.", 0, "2026-11-12T09:00:00"),
+                _stage("rt-SCT-1004", 2, "Махачкала", "Амирабад", "sea", "2026-11-12T09:00:00", "2026-11-17T12:00:00", 1050, "pending", "Ожидание документов.", 0, None, "2026-11-15T08:00:00"),
             ],
         },
         {
@@ -352,8 +338,8 @@ def build_seed() -> dict:
             "estimatedCost": 430000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1005", 1, "Саратов", "Астрахань", "rail", "2026-11-05T08:00:00", "2026-11-06T14:00:00", 520, "completed", "Железнодорожный участок завершён.", 0, "2026-11-06T14:00:00"),
-                _stage("rt-SCT-1005", 2, "Астрахань", "Энзели", "sea", "2026-11-06T14:00:00", "2026-11-10T15:00:00", 760, "completed", "Морской рейс завершён, груз в порту Энзели.", 0, "2026-11-10T15:00:00", "2026-11-07T08:00:00"),
+                _stage("rt-SCT-1005", 1, "Саратов", "Астрахань", "rail", "2026-11-05T08:00:00", "2026-11-06T14:00:00", 520, "completed", "ЖД участок завершён.", 0, "2026-11-06T14:00:00"),
+                _stage("rt-SCT-1005", 2, "Астрахань", "Энзели", "sea", "2026-11-06T14:00:00", "2026-11-10T15:00:00", 760, "completed", "Рейс завершён.", 0, "2026-11-10T15:00:00", "2026-11-07T08:00:00"),
             ],
         },
         {
@@ -368,8 +354,8 @@ def build_seed() -> dict:
             "estimatedCost": 310000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1006", 1, "Каспийск", "Махачкала", "road", "2026-11-13T09:00:00", "2026-11-13T12:00:00", 30, "pending", "Отправление автотранспортом запланировано на 13 ноября.", 0),
-                _stage("rt-SCT-1006", 2, "Махачкала", "Энзели", "sea", "2026-11-13T12:00:00", "2026-11-17T15:00:00", 740, "pending", "Морской рейс после подвоза в порт.", 0, None, "2026-11-13T20:00:00"),
+                _stage("rt-SCT-1006", 1, "Каспийск", "Махачкала", "road", "2026-11-13T09:00:00", "2026-11-13T12:00:00", 30, "pending", "Запланирован автоподвоз.", 0),
+                _stage("rt-SCT-1006", 2, "Махачкала", "Энзели", "sea", "2026-11-13T12:00:00", "2026-11-17T15:00:00", 740, "pending", "Морской рейс после подвоза.", 0, None, "2026-11-13T20:00:00"),
             ],
         },
     ]
@@ -380,17 +366,17 @@ def build_seed() -> dict:
     documents += _full_docs("SCT-1003", "2026-11-09")
     documents += [
         _document("SCT-1004", "waybill", "verified", "WAY-1004", "2026-11-11", True, "Накладная приложена."),
-        _document("SCT-1004", "invoice", "needs_attention", "", "", True, "Не указан номер документа."),
+        _document("SCT-1004", "invoice", "needs_attention", "", "", True, "Не указан номер."),
         _document("SCT-1004", "packing", "verified", "PKG-1004", "2026-11-11", True, "Упаковочный лист приложен."),
         _document("SCT-1004", "declaration", "missing", "", "", False, "Файл не загружен."),
         _document("SCT-1004", "origin", "verified", "ORG-1004", "2026-11-11", True, "Сертификат приложен."),
     ]
     documents += _full_docs("SCT-1005", "2026-11-04")
     documents += [
-        _document("SCT-1006", "waybill", "verified", "WAY-1006", "2026-11-11", True, "Накладная приложена."),
-        _document("SCT-1006", "invoice", "verified", "INV-1006", "2026-11-11", True, "Инвойс приложен."),
-        _document("SCT-1006", "packing", "verified", "PKG-1006", "2026-11-11", True, "Упаковочный лист приложен."),
-        _document("SCT-1006", "declaration", "verified", "DEC-1006", "2026-11-11", True, "Декларация приложена."),
+        _document("SCT-1006", "waybill", "verified", "WAY-1006", "2026-11-11", True, "Накладная."),
+        _document("SCT-1006", "invoice", "verified", "INV-1006", "2026-11-11", True, "Инвойс."),
+        _document("SCT-1006", "packing", "verified", "PKG-1006", "2026-11-11", True, "Упаковочный лист."),
+        _document("SCT-1006", "declaration", "verified", "DEC-1006", "2026-11-11", True, "Декларация."),
         _document("SCT-1006", "origin", "pending", "ORG-1006", "2026-11-11", True, "Ожидает проверки."),
     ]
 
@@ -401,17 +387,8 @@ def build_seed() -> dict:
             "type": "preclearance",
             "title": "Предварительное оформление",
             "result": "Предварительно подготовлена",
-            "details": "Комплект из пяти документов был полным. Запись демонстрационного журнала, не блокчейн.",
+            "details": "Комплект документов полный.",
             "at": "2026-11-04T11:30:00",
-        },
-        {
-            "id": "j-seed-1002",
-            "shipmentId": "SCT-1002",
-            "type": "preclearance",
-            "title": "Предварительное оформление",
-            "result": "Предварительно подготовлена",
-            "details": "Заявка принята в демонстрационный журнал до выхода судна.",
-            "at": "2026-11-10T15:00:00",
         },
         {
             "id": "j-seed-1004",
@@ -424,22 +401,22 @@ def build_seed() -> dict:
         },
     ]
 
-    return {
-        "shipments": shipments,
-        "routes": routes,
-        "predictions": [],
-        "documents": documents,
-        "notifications": [],
-        "journal": journal,
-        "ports": json.loads(json.dumps(PORTS)),
-        "emissionFactors": dict(DEFAULT_EMISSION_FACTORS),
-        "users": default_users(),
-        "sessions": [],
-        "profile": {
-            "name": "Демо-логист",
-            "role": "Логист коридора Север — Юг",
-            "organization": "Smart Caspian Transit",
-            "userId": "user-logist",
-        },
-        "lastRecalculatedAt": None,
-    }
+    return {"shipments": shipments, "routes": routes, "documents": documents, "journal": journal}
+
+
+def seed_demo_if_empty(session: Session) -> bool:
+    """Возвращает True, если демо-грузы были добавлены."""
+    count = session.scalar(select(func.count()).select_from(ShipmentRow)) or 0
+    if count > 0:
+        return False
+
+    data = load_state(session)
+    demo = build_demo_payload()
+    data["shipments"] = demo["shipments"]
+    data["routes"] = demo["routes"]
+    data["documents"] = demo["documents"]
+    data["journal"] = demo["journal"] + data.get("journal", [])
+    recalculate(data)
+    save_state(session, data)
+    session.commit()
+    return True

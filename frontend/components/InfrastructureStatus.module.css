@@ -1,0 +1,23 @@
+.section {
+  margin: 0;
+  border: 1px solid #e5e2eb;
+  border-radius: 18px;
+  background: #fff;
+  padding: 17px 18px 14px;
+}
+
+.heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+.heading h2 { margin: 0; font-size: 16px; line-height: 1.3; }
+.source { color: #68636f; font-size: 11px; text-align: right; }
+.row { display: flex; gap: 10px; align-items: center; padding: 11px 0; border-bottom: 1px solid #efedf2; }
+.icon { flex: 0 0 30px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: #f2effb; color: #4800ff; font-size: 16px; font-weight: 700; }
+.copy { flex: 1; min-width: 0; }
+.copy strong, .copy small, .value small { display: block; }
+.copy strong { font-size: 13px; line-height: 1.35; }
+.copy small { margin-top: 3px; color: #65616c; font-size: 11px; line-height: 1.4; }
+.value { text-align: right; font-variant-numeric: tabular-nums; }
+.value b { font-size: 16px; }
+.value small { color: #766b94; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.unknown { flex: 0 0 auto; color: #625e68; font-size: 11px; font-weight: 650; }
+.note { margin: 11px 0 0; color: #68636f; font-size: 11px; line-height: 1.45; }
+@media (max-width: 480px) { .heading { display: block; } .source { display: block; text-align: left; margin-top: 3px; } .row { align-items: flex-start; } .unknown { margin-top: 3px; } }
