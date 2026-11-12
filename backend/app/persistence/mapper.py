@@ -244,6 +244,7 @@ def load_state(session: Session) -> dict:
         "sessions": sessions,
         "profile": profile,
         "lastRecalculatedAt": last_recalc,
+        "corridorChain": settings.get("corridorChain") or [],
     }
 
 
@@ -460,6 +461,7 @@ def save_state(session: Session, data: dict) -> None:
         "emissionFactors": data.get("emissionFactors") or dict(DEFAULT_EMISSION_FACTORS),
         "profile": data.get("profile") or {},
         "lastRecalculatedAt": data.get("lastRecalculatedAt"),
+        "corridorChain": data.get("corridorChain") or [],
     }
     meta = session.get(AppMetaRow, "settings")
     if meta is None:

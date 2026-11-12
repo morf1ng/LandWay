@@ -14,7 +14,7 @@ from app.store import store
 
 public_router = APIRouter()
 router = APIRouter()
-UPLOADS = Path(__file__).resolve().parents[1] / "uploads"
+UPLOADS = Path(__file__).resolve().parents[2] / "uploads"
 
 
 def _mutate(mutator):
@@ -82,6 +82,19 @@ def map_view():
 @router.get("/analytics")
 def analytics():
     return queries.analytics(store.read())
+
+
+@router.post("/analytics/ai/{shipment_id}")
+def ai_analysis(shipment_id: str):
+    from app.services.openrouter import AIUnavailable, explain
+
+    row = next((item for item in queries.analytics(store.read())["rows"] if item["id"] == shipment_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Груз не найден")
+    try:
+        return explain(row)
+    except AIUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/analytics/recalculate")
@@ -192,6 +205,29 @@ def preclear(payload: dict):
     return holder["result"]
 
 
+@router.get("/corridor/contract/{shipment_id}")
+def corridor_contract_status(shipment_id: str):
+    from app.services.corridor_contract import status
+
+    try:
+        return status(store.read(), shipment_id, UPLOADS)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/corridor/contract/{shipment_id}/execute")
+def execute_corridor_contract(shipment_id: str, user: dict = Depends(require_user)):
+    from app.services.corridor_contract import execute
+
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = execute(data, shipment_id, UPLOADS, user.get("name") or user.get("username") or "Демо-логист")
+
+    _mutate(mutate)
+    return holder["result"]
+
+
 @router.get("/journal")
 def journal():
     return queries.journal(store.read())
@@ -240,16 +276,13 @@ def read_all():
 
 @router.get("/profile")
 def profile(user: dict = Depends(require_user)):
+    from app.services.auth import profile_payload
+
     data = store.read()
     prof = data.get("profile") or {}
     if prof.get("userId") == user["id"]:
-        return prof
-    return {
-        "name": user["name"],
-        "role": user["role"],
-        "organization": user["organization"],
-        "userId": user["id"],
-    }
+        return {**prof, "username": user["username"], "roleEditable": user.get("username") != "logist"}
+    return profile_payload(user)
 
 
 @router.patch("/profile")

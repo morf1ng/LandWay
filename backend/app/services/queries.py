@@ -139,7 +139,33 @@ def map_payload(data: dict) -> dict:
         places.append({**port, "kind": "port", "waitingShipments": waiting})
     for name, city in CITIES.items():
         places.append({"name": name, "kind": "city", **city, "waitingShipments": 0})
-    return {"places": places, "shipments": shipments}
+    return {
+        "places": places,
+        "shipments": shipments,
+        "corridor": {
+            "label": "МТК «Север — Юг»: транскаспийская ветвь до Индии",
+            "source": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1892221",
+            "sourceName": "Министерство портов и судоходства Индии, 2023",
+            "note": "Обзорная схема узлов; линии между городами не являются точным путём судна, дороги или железной дороги. Грузы демо заканчиваются в портах Ирана.",
+            "nodes": [
+                {"name": "Санкт-Петербург", "lat": 59.9343, "lon": 30.3351, "kind": "city"},
+                {"name": "Москва", "lat": 55.7558, "lon": 37.6173, "kind": "city"},
+                {"name": "Астрахань", "lat": 46.35, "lon": 48.04, "kind": "port"},
+                {"name": "Энзели", "lat": 37.47, "lon": 49.46, "kind": "port"},
+                {"name": "Тегеран", "lat": 35.6892, "lon": 51.3890, "kind": "city"},
+                {"name": "Чабахар", "lat": 25.2934, "lon": 60.6430, "kind": "port"},
+                {"name": "Мумбаи", "lat": 19.0760, "lon": 72.8777, "kind": "port"},
+            ],
+            "segments": [
+                {"from": "Санкт-Петербург", "to": "Москва", "mode": "land"},
+                {"from": "Москва", "to": "Астрахань", "mode": "land"},
+                {"from": "Астрахань", "to": "Энзели", "mode": "sea"},
+                {"from": "Энзели", "to": "Тегеран", "mode": "land"},
+                {"from": "Тегеран", "to": "Чабахар", "mode": "land"},
+                {"from": "Чабахар", "to": "Мумбаи", "mode": "sea"},
+            ],
+        },
+    }
 
 
 def shipment_detail(data: dict, shipment_id: str) -> dict:

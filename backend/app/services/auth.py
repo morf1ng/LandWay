@@ -29,20 +29,17 @@ def default_users() -> list[dict]:
             "role": "Логист коридора Север — Юг",
             "organization": "Smart Caspian Transit",
         },
-        {
-            "id": "user-admin",
-            "username": "admin",
-            "passwordHash": hash_password("admin123"),
-            "name": "Администратор",
-            "role": "Администратор платформы",
-            "organization": "Smart Caspian Transit",
-        },
     ]
 
 
 def ensure_auth_fields(data: dict) -> None:
     if "users" not in data or not data["users"]:
         data["users"] = default_users()
+    else:
+        users = [item for item in data["users"] if item.get("username") != "admin"]
+        if not any(item.get("username") == "logist" for item in users):
+            users.append(default_users()[0])
+        data["users"] = users
     if "sessions" not in data:
         data["sessions"] = []
     if "profile" not in data:
@@ -97,13 +94,7 @@ def create_session(data: dict, user: dict, moment: datetime | None = None) -> di
         "expiresAt": iso(expires),
     }
     data.setdefault("sessions", []).append(session)
-    # Профиль в UI совпадает с вошедшим пользователем.
-    data["profile"] = {
-        "name": user["name"],
-        "role": user["role"],
-        "organization": user["organization"],
-        "userId": user["id"],
-    }
+    data["profile"] = profile_payload(user)
     return session
 
 
@@ -162,17 +153,31 @@ def _journal_login(data: dict, user: dict, session: dict) -> None:
     )
 
 
-def update_user_profile(data: dict, user_id: str, payload: dict) -> dict:
-    user = next((item for item in data["users"] if item["id"] == user_id), None)
-    if user is None:
-        raise ValueError("Пользователь не найден")
-    for key in ("name", "role", "organization"):
-        if payload.get(key):
-            user[key] = str(payload[key]).strip()
-    data["profile"] = {
+def role_is_editable(user: dict) -> bool:
+    return user.get("username") != "logist"
+
+
+def profile_payload(user: dict) -> dict:
+    return {
         "name": user["name"],
         "role": user["role"],
         "organization": user["organization"],
         "userId": user["id"],
+        "username": user["username"],
+        "roleEditable": role_is_editable(user),
     }
+
+
+def update_user_profile(data: dict, user_id: str, payload: dict) -> dict:
+    user = next((item for item in data["users"] if item["id"] == user_id), None)
+    if user is None:
+        raise ValueError("Пользователь не найден")
+    if not role_is_editable(user) and "role" in payload and str(payload.get("role", "")).strip() != user["role"]:
+        raise ValueError("Роль нельзя изменить для учётной записи логиста")
+    for key in ("name", "role", "organization"):
+        if key == "role" and not role_is_editable(user):
+            continue
+        if payload.get(key):
+            user[key] = str(payload[key]).strip()
+    data["profile"] = profile_payload(user)
     return data["profile"]
