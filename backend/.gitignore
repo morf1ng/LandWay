@@ -1,0 +1,5 @@
+__pycache__/
+.venv/
+data/store.json
+uploads/*
+!uploads/.gitkeep

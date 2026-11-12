@@ -1,0 +1,62 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+a {
+  color: inherit;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: #f4f4f4;
+}
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  margin: 2px 0;
+}
+button,
+.button-link {
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid #888;
+  background: #eee;
+  text-decoration: none;
+  display: inline-block;
+}
+nav a.active {
+  font-weight: bold;
+}
+.error {
+  color: #900;
+}
+.muted {
+  color: #555;
+}
+section {
+  margin-bottom: 1.5rem;
+}
+h1 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+h2 {
+  font-size: 1.1rem;
+  margin: 1rem 0 0.5rem;
+}
