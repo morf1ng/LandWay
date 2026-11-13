@@ -27,7 +27,10 @@ SATURATION = 70
 def parse_dt(value: str | None) -> datetime | None:
     if not value:
         return None
-    return datetime.fromisoformat(value)
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone().replace(tzinfo=None)
+    return parsed
 
 
 def iso(value: datetime) -> str:
@@ -35,12 +38,9 @@ def iso(value: datetime) -> str:
 
 
 def stage_arrival(stage: dict) -> datetime | None:
-    if stage.get("actualArrival"):
-        return parse_dt(stage["actualArrival"])
-    planned = parse_dt(stage.get("plannedArrival"))
-    if planned is None:
-        return None
-    return planned + timedelta(hours=float(stage.get("delayHours") or 0))
+    from app.services.stage_schedule import stage_arrival as _arrival
+
+    return _arrival(stage)
 
 
 def risk_level(probability: int, delivered: bool) -> str:
@@ -85,6 +85,48 @@ def _docs_flags(documents: list[dict]) -> dict:
     return {"missing": missing, "attention": attention, "pending": pending}
 
 
+FERRY_INTERVAL_HOURS = 24
+
+
+def _hours(value: float) -> str:
+    return f"{value:.1f}".replace(".", ",")
+
+
+def _connection(stages: list[dict], sea: dict | None, ports: list[dict], moment: datetime) -> dict | None:
+    """Стыковка «поезд/авто → паром»: та же модель, что в синтетической истории коридора."""
+    if not sea or sea["status"] != "pending" or not sea.get("shipDeparture"):
+        return None
+    index = stages.index(sea)
+    if index == 0:
+        return None
+    arrival = stage_arrival(stages[index - 1])
+    ship_at = parse_dt(sea["shipDeparture"])
+    if arrival is None or ship_at is None:
+        return None
+    port = _port(ports, sea["location"])
+    workload = float(port["workload"]) if port else 60.0
+    wind = float(port["windSpeed"]) if port else 8.0
+    handling = 1.5 + max(0.0, workload - 60) / 12
+    wind_hold = max(0.0, wind - 14) * 0.9
+    crossing = max(0.0, wind - 12) * 0.6
+    buffer_hours = (ship_at + timedelta(hours=wind_hold) - arrival - timedelta(hours=handling)).total_seconds() / 3600
+    wait = 0.0
+    if buffer_hours < 0:
+        wait = FERRY_INTERVAL_HOURS * math.ceil(-buffer_hours / FERRY_INTERVAL_HOURS)
+        hours = wait + wind_hold + crossing
+    elif buffer_hours < 4:
+        hours = FERRY_INTERVAL_HOURS / 3 + wind_hold + crossing
+    else:
+        hours = wind_hold + crossing
+    return {
+        "port": sea["location"],
+        "bufferHours": round(buffer_hours, 1),
+        "missed": buffer_hours < 0,
+        "waitHours": wait,
+        "hours": hours,
+    }
+
+
 def assess(
     shipment: dict,
     route: dict,
@@ -120,16 +162,19 @@ def assess(
     active_name = dest_name if sea and sea["status"] == "in_progress" else sea_port_name
     active_port = _port(ports, active_name)
 
+    connection = _connection(stages, sea, ports, moment)
+    generic_hours = 0.0
+
     if active_port:
         workload = float(active_port["workload"])
         if workload >= 80:
             raw += WORKLOAD_HIGH_POINTS
             reasons.append(f"высокая загруженность порта {active_port['name']}")
-            delay += 8
+            generic_hours += 8
         elif workload >= 60:
             raw += WORKLOAD_MID_POINTS
             reasons.append(f"повышенная загруженность порта {active_port['name']}")
-            delay += 4
+            generic_hours += 4
 
     weather_names = []
     for name in (sea_port_name, dest_name):
@@ -157,12 +202,12 @@ def assess(
         raw += round(WEATHER_POINTS * factor) * len(adverse)
         names = ", ".join(port["name"] for port in adverse)
         reasons.append(f"неблагоприятная погода ({names})")
-        delay += round(10 * factor) * len(adverse)
+        generic_hours += round(10 * factor) * len(adverse)
 
     if wind_port and float(wind_port["windSpeed"]) >= 16:
         raw += round(WIND_POINTS * factor)
-        reasons.append(f"сильный ветер, {wind_port['windSpeed']} м/с ({wind_port['name']})")
-        delay += round(6 * factor)
+        reasons.append(f"сильный ветер, {float(wind_port['windSpeed']):g} м/с ({wind_port['name']})")
+        generic_hours += round(6 * factor)
 
     rail_delay = 0.0
     for stage in stages:
@@ -171,27 +216,29 @@ def assess(
     if rail_delay >= 8:
         raw += RAIL_DELAY_POINTS
         reasons.append("поезд прибывает позже расписания")
-        delay += rail_delay
     elif rail_delay >= 2:
         raw += 10
         reasons.append("небольшое отставание поезда от расписания")
-        delay += rail_delay
 
-    if sea and sea["status"] == "pending" and sea.get("shipDeparture"):
-        index = stages.index(sea)
-        if index > 0:
-            arrival = stage_arrival(stages[index - 1])
-            ship_at = parse_dt(sea["shipDeparture"])
-            if arrival and ship_at:
-                buffer_hours = (ship_at - arrival).total_seconds() / 3600
-                if buffer_hours < 4:
-                    raw += MISS_POINTS
-                    reasons.append("существует риск пропустить морской рейс")
-                    delay += 18
-                elif buffer_hours < 7:
-                    raw += TIGHT_POINTS
-                    reasons.append("короткое окно пересадки на морской рейс")
-                    delay += 6
+    if connection is None:
+        delay += generic_hours + (rail_delay if rail_delay >= 2 else 0)
+    else:
+        delay += connection["hours"]
+        buffer_hours = connection["bufferHours"]
+        if connection["missed"]:
+            raw += MISS_POINTS
+            reasons.append(
+                f"существует риск пропустить морской рейс: груз будет в порту {connection['port']} "
+                f"на {abs(buffer_hours):.0f} ч позже отхода, ожидание следующего рейса ≈ {connection['waitHours']:.0f} ч"
+            )
+        elif buffer_hours < 4:
+            raw += MISS_POINTS
+            reasons.append(
+                f"существует риск пропустить морской рейс: запас на пересадку {_hours(buffer_hours)} ч"
+            )
+        elif buffer_hours < 7:
+            raw += TIGHT_POINTS
+            reasons.append(f"короткое окно пересадки на морской рейс ({_hours(buffer_hours)} ч)")
 
     flags = _docs_flags(documents)
     if flags["missing"] or flags["attention"]:

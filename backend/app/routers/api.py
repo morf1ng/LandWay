@@ -14,12 +14,16 @@ from app.store import store
 
 public_router = APIRouter()
 router = APIRouter()
-UPLOADS = Path(__file__).resolve().parents[2] / "uploads"
+from app.config import UPLOADS_DIR as UPLOADS
 
 
 def _mutate(mutator):
+    from app.services.routing import StaleRouteState
+
     try:
         return store.update(mutator)
+    except StaleRouteState as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -59,9 +63,14 @@ def create_shipment(payload: dict):
 
 @router.get("/shipments/{shipment_id}")
 def get_shipment(shipment_id: str):
-    detail = queries.shipment_detail(store.read(), shipment_id)
+    data = store.read()
+    detail = queries.shipment_detail(data, shipment_id)
     if not detail:
         raise HTTPException(status_code=404, detail="Груз не найден")
+    from app.services.preliminary_review import enrich_shipment_preclearance
+
+    shipment = next(item for item in data["shipments"] if item["id"] == shipment_id)
+    detail["preclearance"] = enrich_shipment_preclearance(data, shipment, UPLOADS)
     return detail
 
 
@@ -108,6 +117,19 @@ def recalculate(payload: dict | None = None):
     return queries.analytics(store.read())
 
 
+@router.post("/analytics/history/reload")
+def reload_corridor_history():
+    from app.data.corridor_history import synthetic_corridor_history
+    from app.services.engine import recalculate as run
+
+    def mutate(data):
+        data["corridorHistory"] = synthetic_corridor_history()
+        run(data)
+
+    _mutate(mutate)
+    return queries.analytics(store.read())
+
+
 @router.get("/routes")
 def routes_catalog():
     return queries.route_catalog(store.read())
@@ -131,7 +153,7 @@ def select_route(payload: dict):
         raise HTTPException(status_code=400, detail="Нужны shipmentId и templateId")
 
     def mutate(data):
-        operations.select_route(data, shipment_id, template_id)
+        operations.select_route(data, shipment_id, template_id, payload.get("expectedVersion"))
 
     _mutate(mutate)
     return queries.shipment_detail(store.read(), shipment_id)
@@ -178,7 +200,7 @@ def download_document(document_id: str):
 
 
 @router.post("/documents/check")
-def check_documents(payload: dict):
+def check_documents(payload: dict, user: dict = Depends(require_user)):
     shipment_id = payload.get("shipmentId")
     if not shipment_id:
         raise HTTPException(status_code=400, detail="Выберите груз")
@@ -192,21 +214,57 @@ def check_documents(payload: dict):
 
 
 @router.post("/documents/preclear")
-def preclear(payload: dict):
+def preclear(payload: dict, user: dict = Depends(require_user)):
     shipment_id = payload.get("shipmentId")
     if not shipment_id:
         raise HTTPException(status_code=400, detail="Выберите груз")
     holder: dict = {}
 
     def mutate(data):
-        holder["result"] = operations.preclear(data, shipment_id)
+        holder["result"] = operations.preclear(
+            data,
+            shipment_id,
+            UPLOADS,
+            user.get("name") or user.get("username") or "Демо-логист",
+        )
+
+    _mutate(mutate)
+    return holder["result"]
+
+
+@router.get("/documents/preliminary-review/{shipment_id}")
+def preliminary_review_status(shipment_id: str, user: dict = Depends(require_user)):
+    from app.services.preliminary_review import review_status
+
+    data = store.read()
+    if not any(item["id"] == shipment_id for item in data["shipments"]):
+        raise HTTPException(status_code=404, detail="Груз не найден")
+    return review_status(data, shipment_id, UPLOADS)
+
+
+@router.post("/documents/preliminary-review")
+def submit_preliminary_review(payload: dict, user: dict = Depends(require_user)):
+    shipment_id = payload.get("shipmentId")
+    if not shipment_id:
+        raise HTTPException(status_code=400, detail="Выберите груз")
+    idempotency_key = payload.get("idempotencyKey")
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = operations.submit_preliminary_review(
+            data,
+            shipment_id,
+            UPLOADS,
+            user.get("name") or user.get("username") or "Демо-логист",
+            idempotency_key=idempotency_key,
+        )
 
     _mutate(mutate)
     return holder["result"]
 
 
 @router.get("/corridor/contract/{shipment_id}")
-def corridor_contract_status(shipment_id: str):
+def corridor_contract_status(shipment_id: str, user: dict = Depends(require_user)):
     from app.services.corridor_contract import status
 
     try:
@@ -217,12 +275,15 @@ def corridor_contract_status(shipment_id: str):
 
 @router.post("/corridor/contract/{shipment_id}/execute")
 def execute_corridor_contract(shipment_id: str, user: dict = Depends(require_user)):
-    from app.services.corridor_contract import execute
-
     holder: dict = {}
 
     def mutate(data):
-        holder["result"] = execute(data, shipment_id, UPLOADS, user.get("name") or user.get("username") or "Демо-логист")
+        holder["result"] = operations.submit_preliminary_review(
+            data,
+            shipment_id,
+            UPLOADS,
+            user.get("name") or user.get("username") or "Демо-логист",
+        )
 
     _mutate(mutate)
     return holder["result"]
@@ -299,3 +360,78 @@ def patch_profile(payload: dict, user: dict = Depends(require_user)):
 @router.get("/ports")
 def ports():
     return queries.dashboard(store.read())["ports"]
+
+
+@router.get("/infrastructure/status")
+def infrastructure_status():
+    return queries.infrastructure_status(store.read())
+
+
+@router.post("/demo/reset")
+def reset_demo(user: dict = Depends(require_user)):
+    from app.demo_reset import apply_demo
+
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = apply_demo(data, UPLOADS)
+
+    _mutate(mutate)
+    return holder["result"]
+
+
+@router.post("/events")
+def post_event(payload: dict, user: dict = Depends(require_user)):
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = operations.ingest_event(data, payload)
+
+    _mutate(mutate)
+    return holder["result"]
+
+
+@router.post("/shipments/{shipment_id}/simulate/port-departure-closed")
+def simulate_port_closed(shipment_id: str, payload: dict | None = None, user: dict = Depends(require_user)):
+    holder: dict = {}
+
+    def mutate(data):
+        ends = (payload or {}).get("restrictionEndsAt")
+        holder["result"] = operations.simulate_port_close(data, shipment_id, restriction_ends_at=ends)
+
+    _mutate(mutate)
+    data = store.read()
+    detail = queries.shipment_detail(data, shipment_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Груз не найден")
+    return {"telemetry": holder["result"], "shipment": detail}
+
+
+@router.post("/shipments/{shipment_id}/simulate/port-departure-open")
+def simulate_port_open(shipment_id: str, user: dict = Depends(require_user)):
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = operations.simulate_port_open(data, shipment_id)
+
+    _mutate(mutate)
+    data = store.read()
+    detail = queries.shipment_detail(data, shipment_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Груз не найден")
+    return {"telemetry": holder["result"], "shipment": detail}
+
+
+@router.post("/shipments/{shipment_id}/simulate/rail-delay")
+def simulate_rail_delay(shipment_id: str, user: dict = Depends(require_user)):
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = operations.simulate_rail_event(data, shipment_id)
+
+    _mutate(mutate)
+    data = store.read()
+    detail = queries.shipment_detail(data, shipment_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Груз не найден")
+    return {"telemetry": holder["result"], "shipment": detail}

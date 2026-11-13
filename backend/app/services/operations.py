@@ -241,43 +241,26 @@ def update_shipment(data: dict, shipment_id: str, payload: dict) -> dict:
     return shipment
 
 
-def select_route(data: dict, shipment_id: str, template_id: str) -> dict:
-    shipment = _find_shipment(data, shipment_id)
-    if shipment["status"] == "delivered":
-        raise ValueError("Нельзя сменить маршрут доставленного груза")
-    template = template_by_id(template_id)
-    if template is None or not template_is_valid(template):
-        raise ValueError("Нельзя выбрать маршрут без необходимых точек и этапов")
-    if template["destination"] != shipment["destination"]:
-        raise ValueError("Альтернатива должна вести в тот же пункт назначения")
+def select_route(data: dict, shipment_id: str, template_id: str, expected_version: str | None = None) -> dict:
+    from app.services.routing import apply_route_alternative
+
     moment = _now()
-    departure = datetime.fromisoformat(shipment["plannedDeparture"])
-    route = materialize(template, departure, shipment["routeId"], shipment["id"])
-    for index, item in enumerate(data["routes"]):
-        if item["id"] == shipment["routeId"]:
-            data["routes"][index] = route
-            break
-    shipment["origin"] = template["origin"]
-    shipment["templateId"] = template["id"]
-    shipment["transportSequence"] = list(template["sequence"])
-    shipment["currentLocation"] = route["stages"][0]["location"]
-    shipment["currentTransport"] = route["stages"][0]["transportType"]
-    shipment["currentPort"] = route["stages"][0]["location"] if route["stages"][0]["location"] in PORT_NAMES else None
-    shipment["plannedArrival"] = route["stages"][-1]["plannedArrival"]
-    if shipment["status"] in ("delayed", "in_transit"):
-        shipment["status"] = "awaiting"
-    shipment["extraEvents"].append(
-        {
-            "time": iso(moment),
-            "location": shipment["origin"],
-            "transport": shipment["currentTransport"],
-            "description": f"Выбран маршрут: {template['name']}",
-            "status": shipment["status"],
-        }
+    template = template_by_id(template_id)
+    shipment = apply_route_alternative(data, shipment_id, template_id, moment, expected_version)
+    _journal(
+        data,
+        shipment_id,
+        "route",
+        "Смена маршрута",
+        template["name"] if template else template_id,
+        "Маршрут пересобран от узла стыковки. Прогноз и углеродный след пересчитаны.",
+        moment,
     )
-    _journal(data, shipment_id, "route", "Смена маршрута", template["name"], "Новая последовательность этапов сохранена. Прогноз и углеродный след пересчитаны.", moment)
     recalculate(data, moment)
     return shipment
+
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
 def save_upload(data: dict, shipment_id: str, type_id: str, original_name: str, content: bytes, uploads_dir) -> dict:
@@ -286,6 +269,9 @@ def save_upload(data: dict, shipment_id: str, type_id: str, original_name: str, 
         raise ValueError("Неизвестный тип документа")
     if not content:
         raise ValueError("Файл пустой")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise ValueError(f"Файл больше {MAX_UPLOAD_BYTES // (1024 * 1024)} МБ")
+    original_name = original_name.replace("\\", "/").rsplit("/", 1)[-1].strip() or "file"
     moment = _now()
     document = next((item for item in data["documents"] if item["shipmentId"] == shipment_id and item["type"] == type_id), None)
     if document is None:
@@ -298,10 +284,8 @@ def save_upload(data: dict, shipment_id: str, type_id: str, original_name: str, 
         }
         data["documents"].append(document)
     stored = f"{document['id']}-{uuid.uuid4().hex[:6]}"
-    suffix = ""
-    if "." in original_name:
-        suffix = "." + original_name.rsplit(".", 1)[1][:8]
-    stored += suffix
+    extension = "".join(ch for ch in original_name.rsplit(".", 1)[1] if ch.isascii() and ch.isalnum())[:8] if "." in original_name else ""
+    stored += f".{extension}" if extension else ""
     uploads_dir.mkdir(parents=True, exist_ok=True)
     (uploads_dir / stored).write_bytes(content)
     document["file"] = {
@@ -357,33 +341,23 @@ def check_documents(data: dict, shipment_id: str) -> dict:
     return result
 
 
-def preclear(data: dict, shipment_id: str) -> dict:
-    shipment = _find_shipment(data, shipment_id)
-    if shipment["status"] == "delivered":
-        raise ValueError("Груз уже доставлен")
-    moment = _now()
-    documents = [item for item in data["documents"] if item["shipmentId"] == shipment_id]
-    result = check_shipment_documents(documents)
-    shipment["preclearanceAt"] = iso(moment)
-    if result["ready"]:
-        shipment["preclearanceStatus"] = "Предварительно подготовлена"
-        _sync_doc_status(shipment, [])
-        details = "Все необходимые документы в статусе «проверен». Это демонстрация предварительного оформления, не решение таможни."
-        ok = True
-    else:
-        shipment["preclearanceStatus"] = "есть замечания"
-        _sync_doc_status(shipment, result["problems"])
-        details = "Недостающие или непроверенные документы: " + "; ".join(result["problems"])
-        ok = False
-    _journal(data, shipment_id, "preclearance", "Предварительное оформление", shipment["preclearanceStatus"], details, moment)
-    recalculate(data, moment)
-    return {
-        "ok": ok,
-        "status": shipment["preclearanceStatus"],
-        "submittedAt": shipment["preclearanceAt"],
-        "problems": result["problems"],
-        "details": details,
-    }
+def preclear(data: dict, shipment_id: str, uploads_dir, actor: str = "Демо-логист") -> dict:
+    from app.services.preliminary_review import submit
+
+    return submit(data, shipment_id, uploads_dir, actor)
+
+
+def submit_preliminary_review(
+    data: dict,
+    shipment_id: str,
+    uploads_dir,
+    actor: str,
+    *,
+    idempotency_key: str | None = None,
+) -> dict:
+    from app.services.preliminary_review import submit
+
+    return submit(data, shipment_id, uploads_dir, actor, idempotency_key=idempotency_key)
 
 
 def update_factors(data: dict, payload: dict) -> dict:
@@ -411,6 +385,45 @@ def update_profile(data: dict, payload: dict, user_id: str | None = None) -> dic
         if payload.get(key):
             profile[key] = str(payload[key]).strip()
     return profile
+
+
+def ingest_event(data: dict, payload: dict) -> dict:
+    from app.services.telemetry import ingest_event as apply_event
+
+    return apply_event(data, payload)
+
+
+def simulate_rail_event(data: dict, shipment_id: str) -> dict:
+    from app.services.telemetry import simulate_rail_miss_ferry
+
+    return simulate_rail_miss_ferry(data, shipment_id)
+
+
+def _pending_sea_port(data: dict, shipment_id: str) -> str:
+    shipment = _find_shipment(data, shipment_id)
+    route = next(item for item in data["routes"] if item["id"] == shipment["routeId"])
+    for stage in route["stages"]:
+        if stage.get("transportType") == "sea" and stage.get("status") == "pending":
+            return stage["location"]
+    raise ValueError("У груза нет ожидающего морского этапа")
+
+
+def simulate_port_close(data: dict, shipment_id: str, restriction_ends_at: str | None = None) -> dict:
+    from app.services.telemetry import simulate_port_departure_closed
+
+    port = _pending_sea_port(data, shipment_id)
+    result = simulate_port_departure_closed(data, port_name=port, restriction_ends_at=restriction_ends_at)
+    recalculate(data, _now())
+    return result
+
+
+def simulate_port_open(data: dict, shipment_id: str) -> dict:
+    from app.services.telemetry import simulate_port_departure_open
+
+    port = _pending_sea_port(data, shipment_id)
+    result = simulate_port_departure_open(data, port_name=port)
+    recalculate(data, _now())
+    return result
 
 
 def mark_notification(data: dict, notification_id: str, read: bool = True) -> dict:

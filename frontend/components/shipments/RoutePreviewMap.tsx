@@ -8,10 +8,9 @@ import styles from "./shipmentCards.module.css";
 function MapInvalidate() {
   const map = useMap();
   useEffect(() => {
-    const refresh = () => map.invalidateSize({ animate: false });
-    refresh();
-    const timers = [0, 120, 400].map((ms) => window.setTimeout(refresh, ms));
-    return () => timers.forEach(clearTimeout);
+    const observer = new ResizeObserver(() => map.invalidateSize({ animate: false }));
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
   }, [map]);
   return null;
 }
@@ -29,13 +28,8 @@ function FitRoute({
   useEffect(() => {
     if (!points.length) return;
     const flat = lines.length ? lines.flat() : points;
-    const fit = () => {
-      map.invalidateSize({ animate: false });
-      map.fitBounds(flat, { padding: detail ? [40, 40] : [28, 28], maxZoom: detail ? 9 : 7, animate: false });
-    };
-    fit();
-    const timer = window.setTimeout(fit, 150);
-    return () => clearTimeout(timer);
+    map.invalidateSize({ animate: false });
+    map.fitBounds(flat, { padding: detail ? [40, 40] : [28, 28], maxZoom: detail ? 9 : 7, animate: false });
   }, [map, points, lines, detail]);
   return null;
 }
@@ -66,10 +60,10 @@ export function RoutePreviewMap({ center, points, lines, names, modes, detail }:
       touchZoom={Boolean(detail)}
       keyboard={false}
       boxZoom={false}
+      trackResize={false}
       zoomControl={Boolean(detail)}
       attributionControl={false}
       className={styles.embeddedMap}
-      style={{ height: "100%", width: "100%", minHeight: detail ? 320 : 132 }}
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
       <MapInvalidate />

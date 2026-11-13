@@ -44,8 +44,9 @@ export default function ShipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [prefs, setPrefs] = useState<ShipmentListPrefs>(defaultListPrefs);
+  const [prefsReady, setPrefsReady] = useState(false);
 
-  const { sharedId, openCard } = useShipmentCardNavigation("shipments", prefs);
+  const { openCard, returningId } = useShipmentCardNavigation("/shipments", prefsReady && !loading, prefs);
 
   const [form, setForm] = useState({
     name: "",
@@ -64,11 +65,12 @@ export default function ShipmentsPage() {
 
   useEffect(() => {
     setPrefs(loadListPrefs());
+    setPrefsReady(true);
   }, []);
 
   useEffect(() => {
-    saveListPrefs(prefs);
-  }, [prefs]);
+    if (prefsReady) saveListPrefs(prefs);
+  }, [prefs, prefsReady]);
 
   function reload() {
     setLoading(true);
@@ -332,7 +334,7 @@ export default function ShipmentsPage() {
                   key={item.id}
                   item={item}
                   href={href}
-                  shared={sharedId === item.id}
+                  eagerMap={returningId === item.id}
                   onActivate={openCard}
                 />
               );

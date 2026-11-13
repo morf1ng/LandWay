@@ -18,10 +18,12 @@ type Props = {
 
 export function RecentShipments({ heading = "Последние перевозки", titleId, items }: Props) {
   const [view, setView] = useState<ShipmentView>("cards");
-  const { sharedId, openCard } = useShipmentCardNavigation("dashboard");
+  const [viewReady, setViewReady] = useState(false);
+  const { openCard, returningId } = useShipmentCardNavigation("/", viewReady);
 
   useEffect(() => {
     setView(loadListPrefs().view);
+    setViewReady(true);
   }, []);
 
   function onViewChange(next: ShipmentView) {
@@ -56,7 +58,7 @@ export function RecentShipments({ heading = "Последние перевозк
                 key={item.id}
                 item={item}
                 href={hrefFor(item.id)}
-                shared={sharedId === item.id}
+                eagerMap={returningId === item.id}
                 onActivate={openCard}
               />
             );

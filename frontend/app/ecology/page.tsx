@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, FormEvent, useEffect, useState } from "react";
 import { apiGet, apiPatch } from "@/lib/api";
 import { transportLabel } from "@/lib/labels";
+import { formatKgCo2, formatNumber } from "@/lib/format";
 
 type Ecology = {
   disclaimer: string;
@@ -21,7 +22,13 @@ type Ecology = {
     from: string;
     to: string;
   }>;
-  comparison: Array<{ name: string; current: boolean; carbonFootprint: number }>;
+  comparison: Array<{
+    name: string;
+    current: boolean;
+    selectable: boolean;
+    carbonFootprint: number;
+    fullCarbonFootprint?: number;
+  }>;
 };
 
 function EcologyInner() {
@@ -71,6 +78,8 @@ function EcologyInner() {
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p>Загрузка…</p>;
 
+  const comparison = data.comparison.filter((item) => item.current || item.selectable);
+
   return (
     <div className="appPage">
       <h1>Экологическая аналитика</h1>
@@ -116,6 +125,8 @@ function EcologyInner() {
 
       <section>
         <h2>Фильтр</h2>
+        <label className="fieldInline">
+          Груз{" "}
         <select value={shipmentId} onChange={(e) => setShipmentId(e.target.value)}>
           <option value="">Все грузы</option>
           {shipments.map((s) => (
@@ -124,39 +135,45 @@ function EcologyInner() {
             </option>
           ))}
         </select>
+        </label>
       </section>
 
       <section>
         <h2>Сводка</h2>
         <ul className="statsList">
-          <li>Общий углеродный след: {data.total} кг CO₂</li>
+          <li>Общий углеродный след (все участки маршрутов): {formatKgCo2(data.total)}</li>
           <li>Грузов в расчёте: {data.shipmentCount}</li>
           <li>
             По видам транспорта:{" "}
             {Object.entries(data.byTransport)
-              .map(([k, v]) => `${transportLabel[k] ?? k}: ${v}`)
+              .map(([k, v]) => `${transportLabel[k] ?? k}: ${formatKgCo2(v)}`)
               .join("; ")}
           </li>
         </ul>
       </section>
 
-      {shipmentId && data.comparison.length > 0 && (
+      {shipmentId && comparison.length > 0 && (
         <section>
           <h2>Сравнение маршрутов для {shipmentId}</h2>
-          <table>
+          <p className="muted">Только выполнимые варианты. «Оставшийся путь» — незавершённые участки от текущей позиции груза.</p>
+          <table className="stackedTable">
             <thead>
               <tr>
                 <th>Маршрут</th>
                 <th>Текущий</th>
-                <th>CO₂, кг</th>
+                <th>CO₂ оставшегося пути</th>
+                <th>CO₂ всего маршрута</th>
               </tr>
             </thead>
             <tbody>
-              {data.comparison.map((c) => (
+              {comparison.map((c) => (
                 <tr key={c.name}>
-                  <td>{c.name}</td>
-                  <td>{c.current ? "да" : ""}</td>
-                  <td>{c.carbonFootprint}</td>
+                  <td data-label="Маршрут">{c.name}</td>
+                  <td data-label="Текущий">{c.current ? "да" : "—"}</td>
+                  <td data-label="Оставшийся путь">{formatKgCo2(c.carbonFootprint)}</td>
+                  <td data-label="Весь маршрут">
+                    {c.fullCarbonFootprint != null ? formatKgCo2(c.fullCarbonFootprint) : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -166,7 +183,7 @@ function EcologyInner() {
 
       <section>
         <h2>По этапам</h2>
-        <table>
+        <table className="stackedTable">
           <thead>
             <tr>
               <th>Груз</th>
@@ -180,14 +197,14 @@ function EcologyInner() {
           <tbody>
             {data.rows.map((row, i) => (
               <tr key={i}>
-                <td>{row.shipmentId}</td>
-                <td>{row.routeName}</td>
-                <td>
+                <td data-label="Груз">{row.shipmentId}</td>
+                <td data-label="Маршрут">{row.routeName}</td>
+                <td data-label="Участок">
                   {row.from} → {row.to}
                 </td>
-                <td>{transportLabel[row.transportType] ?? row.transportType}</td>
-                <td>{row.distance}</td>
-                <td>{row.co2Emission}</td>
+                <td data-label="Транспорт">{transportLabel[row.transportType] ?? row.transportType}</td>
+                <td data-label="Расстояние">{formatNumber(row.distance)} км</td>
+                <td data-label="CO₂">{formatKgCo2(row.co2Emission)}</td>
               </tr>
             ))}
           </tbody>

@@ -1,0 +1,199 @@
+.page {
+  position: relative;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+  min-height: 100dvh;
+  margin: -16px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.decor {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.decor span {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.topLeft {
+  top: -62px;
+  left: -88px;
+  width: 320px;
+  height: 320px;
+  background: #4b2cc7;
+}
+
+.topDark {
+  top: -220px;
+  right: 27%;
+  width: 310px;
+  height: 310px;
+  background: #202020;
+}
+
+.rightPurple {
+  top: 20%;
+  right: -450px;
+  width: 650px;
+  height: 650px;
+  background: #4b2cc7;
+}
+
+.bottomLeft {
+  bottom: -185px;
+  left: -175px;
+  width: 350px;
+  height: 350px;
+  background: #4b2cc7;
+}
+
+.bottomDark {
+  right: 19%;
+  bottom: 9%;
+  width: 112px;
+  height: 112px;
+  background: #202020;
+}
+
+.content {
+  width: min(100% - 48px, 570px);
+  padding: 56px 0;
+}
+
+.hero {
+  margin-bottom: clamp(36px, 5dvh, 58px);
+  text-align: center;
+}
+
+.hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.subtitle {
+  margin: 6px 0 0;
+  color: #4b2cc7;
+  font-size: clamp(38px, 4vw, 54px);
+  font-weight: 500;
+  letter-spacing: -.045em;
+  line-height: 1.1;
+}
+
+.fields {
+  display: grid;
+  gap: 27px;
+}
+
+.field {
+  min-width: 0;
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: #202020;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.fieldBox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 66px;
+  padding: 9px 18px;
+  border: 2px solid #292929;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.fieldBox:focus-within {
+  outline: 3px solid #c8baff;
+  outline-offset: 2px;
+}
+
+.fieldValue,
+.fieldInput {
+  min-width: 0;
+  flex: 1;
+  color: #242424;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.fieldInput {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0;
+}
+
+.editLink {
+  flex: none;
+  min-height: 34px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #4b2cc7;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.editLink:hover {
+  border-color: transparent;
+  background: transparent;
+  color: #3215a5;
+  text-decoration: underline;
+}
+
+.error,
+.toast {
+  margin: 18px 0 0;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.error { background: #fff1ef; color: #a5332c; }
+.toast { background: #eef8f1; color: #245c3d; }
+
+@media (max-width: 760px) {
+  .page { margin: -12px; }
+  .content { width: min(100% - 34px, 570px); }
+  .topLeft { left: -210px; }
+  .topDark { right: -190px; }
+  .rightPurple { right: -605px; }
+  .bottomLeft { left: -280px; }
+  .bottomDark { right: -58px; bottom: 3%; width: 80px; height: 80px; }
+  .fieldLabel { font-size: 16px; }
+  .fieldValue, .fieldInput { font-size: 15px; }
+  .fieldBox { min-height: 56px; padding: 8px 11px; }
+  .editLink { font-size: 13px; }
+}
+
+@media (max-height: 700px) and (min-width: 761px) {
+  .content { padding: 34px 0; }
+  .hero { margin-bottom: 22px; }
+  .hero img { width: 82%; }
+  .fields { gap: 16px; }
+  .fieldBox { min-height: 54px; }
+}

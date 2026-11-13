@@ -16,6 +16,11 @@
   gap: 12px;
   margin-bottom: 14px;
 }
+.mapMode { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid #e3ddec; border-radius: 12px; background: #fff; }
+.mapMode button { min-height: 34px !important; padding: 6px 12px !important; border: 0 !important; box-shadow: none !important; background: transparent !important; color: #5d5566 !important; }
+.mapMode button[aria-pressed="true"] { background: #4800ff !important; color: #fff !important; }
+.sourceNote { padding: 10px 14px; background: #fff; border-top: 1px solid #e3e1e9; color: #625e69; font-size: 11px; line-height: 1.45; }
+.sourceNote a { color: #4024a3; font-weight: 650; }
 
 .filterSelect {
   border: 1px solid #e3e1e9;
@@ -240,3 +245,17 @@
     min-height: 360px;
   }
 }
+
+.stageButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.stageButton:hover { text-decoration: underline; }

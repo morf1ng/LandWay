@@ -17,6 +17,7 @@
 .copy small { margin-top: 3px; color: #65616c; font-size: 11px; line-height: 1.4; }
 .value { text-align: right; font-variant-numeric: tabular-nums; }
 .value b { font-size: 16px; }
+.closed { color: #b42318; font-size: 13px; }
 .value small { color: #766b94; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .unknown { flex: 0 0 auto; color: #625e68; font-size: 11px; font-weight: 650; }
 .note { margin: 11px 0 0; color: #68636f; font-size: 11px; line-height: 1.45; }

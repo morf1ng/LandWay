@@ -92,6 +92,7 @@ def status(data: dict, shipment_id: str, uploads_dir: Path) -> dict:
         "snapshotMatches": latest is None or latest["documentDigest"] == current["digest"],
         "chain": verify(chain),
         "network": "Локальный демореестр · 1 узел · без внешней сети",
+        "verifierNote": "Имитация проверяющей стороны для хакатона, не таможенный орган",
     }
 
 

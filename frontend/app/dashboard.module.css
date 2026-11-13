@@ -39,19 +39,35 @@
 
 .metric[data-tone="dark"] {
   background: #080808;
-  color: white;
+  border-color: #080808;
+  color: #fff;
 }
 
 .metric[data-tone="accent"] {
   background: #4800ff;
   border-color: #4800ff;
-  color: white;
+  color: #fff;
 }
 
 .metric h2 {
   margin: 0;
   font-size: clamp(14px, 1.25vw, 19px);
   line-height: 1.2;
+}
+
+.metric[data-tone="dark"] h2,
+.metric[data-tone="dark"] strong,
+.metric[data-tone="dark"] p {
+  color: #fff;
+}
+
+.metric[data-tone="accent"] h2,
+.metric[data-tone="accent"] strong {
+  color: #fff;
+}
+
+.metric[data-tone="accent"] p {
+  color: #ede8ff;
 }
 
 .metric p {
@@ -71,14 +87,38 @@
   font-variant-numeric: tabular-nums;
 }
 
-.details summary {
-  color: #555;
-  cursor: pointer;
-}
-
-.details[open] section {
-  overflow-x: auto;
-}
+.alerts, .ports { margin-top: 34px; }
+.sectionHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin-bottom: 16px; }
+.sectionHead h2 { margin: 0; font-size: clamp(23px, 2vw, 30px); letter-spacing: -.03em; }
+.allLink { flex: none; padding: 9px 14px; border-radius: 10px; background: #4800ff; color: #fff; font-weight: 680; text-decoration: none; }
+.allLink:hover { background: #3e00d8; }
+.allLink:focus-visible, .alertActions a:focus-visible { outline: 3px solid #a986ff; outline-offset: 3px; }
+.alertGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.alertCard { display: flex; flex-direction: column; min-width: 0; padding: 20px 22px; border: 1px solid #e6e2ec; border-left: 5px solid #5b36d6; border-radius: 17px; background: #fff; box-shadow: 0 5px 18px #1c123010; }
+.alertCard[data-severity="medium"] { border-left-color: #b57920; }
+.alertCard[data-severity="low"] { border-left-color: #538671; }
+.severity { color: #4c2bbd; font-size: 11px; font-weight: 760; letter-spacing: .05em; text-transform: uppercase; }
+.alertCard[data-severity="medium"] .severity { color: #89580d; }
+.alertCard[data-severity="low"] .severity { color: #286048; }
+.alertCard h3 { margin: 9px 0 4px; font-size: 17px; line-height: 1.3; }
+.alertCauses { display: grid; gap: 6px; margin: 0 0 18px; padding-left: 18px; color: #5b5661; line-height: 1.45; overflow-wrap: anywhere; }
+.alertActions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: auto; }
+.alertActions a { display: inline-flex; align-items: center; min-height: 36px; padding: 7px 13px; border: 1px solid #ddd7e8; border-radius: 9px; font-weight: 680; text-decoration: none; }
+.shipmentLink { background: #222126; border-color: #222126 !important; color: #fff; }
+.forecastLink { background: #fff; color: #3c2a62; }
+.forecastLink:hover { background: #f5f0ff; }
+.emptyState { padding: 20px; border: 1px solid #e6e2ec; border-radius: 15px; background: #fff; color: #625e69; }
+.demoBadge { padding: 5px 10px; border-radius: 8px; background: #eee9f8; color: #4c3a75; font-size: 11px; font-weight: 750; text-transform: uppercase; }
+.portNote { margin: -4px 0 14px; color: #625e69; font-size: 12px; }
+.portTableWrap { overflow: hidden; border: 1px solid #e6e2ec; border-radius: 16px; background: #fff; box-shadow: 0 5px 18px #1c123010; }
+.portTable { table-layout: fixed; }
+.portTable th { padding: 14px 16px; background: #242328; color: #fff; font-size: 12px; letter-spacing: 0; }
+.portTable td { padding: 15px 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.portTable th:nth-child(1) { width: 15%; }
+.portTable th:nth-child(2) { width: 17%; }
+.portTable th:nth-child(3) { width: 18%; }
+.portTable th:nth-child(4) { width: 32%; }
+.portTable th:nth-child(5) { width: 18%; }
 
 @media (max-width: 1120px) {
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -87,6 +127,17 @@
 @media (max-width: 420px) {
   .metrics { grid-template-columns: 1fr; }
   .metric { min-height: 105px; }
+}
+
+@media (max-width: 760px) {
+  .alertGrid { grid-template-columns: 1fr; }
+  .portTableWrap { border: 0; background: transparent; box-shadow: none; overflow: visible; }
+  .portTable, .portTable tbody, .portTable tr { display: block; width: 100%; }
+  .portTable thead { display: none; }
+  .portTable tr { margin-bottom: 10px; padding: 10px 14px; border: 1px solid #e6e2ec; border-radius: 14px; background: #fff; }
+  .portTable td { display: grid; grid-template-columns: minmax(105px, 38%) 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0edf3; }
+  .portTable td::before { content: attr(data-label); color: #66616e; font-size: 12px; font-weight: 650; }
+  .portTable td:last-child { border: 0; }
 }
 
 .shipments {

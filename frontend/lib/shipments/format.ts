@@ -5,17 +5,19 @@ export type ShipmentCardData = {
   name: string;
   origin: string;
   destination: string;
+  currentLeg?: string;
   status: string;
-  predictedArrival: string;
+  predictedArrival: string | null;
   riskLevel: string;
   probability: number;
 };
 
-const TZ = "Europe/Moscow";
+import { parseServerDate, TIME_ZONE as TZ } from "@/lib/format";
 
-export function formatArrivalRu(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+export function formatArrivalRu(value?: string | null): string {
+  if (!value) return "не определён";
+  const date = parseServerDate(value);
+  if (!date) return "не определён";
   return new Intl.DateTimeFormat("ru-RU", {
     day: "numeric",
     month: "short",

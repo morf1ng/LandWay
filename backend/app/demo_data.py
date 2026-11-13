@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.catalog import REQUIRED_DOCUMENT_TYPES, document_label
 from app.models import ShipmentRow
 from app.persistence.mapper import load_state, save_state
-from app.services.engine import recalculate
 
 
 def _stage(
@@ -34,11 +33,14 @@ def _stage(
         "transportType": transport,
         "plannedStart": start,
         "plannedArrival": arrival,
+        "schedulePlannedStart": start,
+        "schedulePlannedArrival": arrival,
         "actualArrival": actual,
         "status": status,
         "distanceKm": distance,
         "delayHours": delay_hours,
         "shipDeparture": ship_departure,
+        "scheduleShipDeparture": ship_departure,
         "description": description,
     }
 
@@ -91,7 +93,7 @@ def build_demo_payload() -> dict:
             "containerCount": 18,
             "sender": "ООО «ВолгаМаш»",
             "receiver": "Anzali Industrial Co.",
-            "origin": "Астрахань",
+            "origin": "Саратов",
             "destination": "Энзели",
             "status": "delayed",
             "plannedDeparture": "2026-11-10T08:00:00",
@@ -147,7 +149,7 @@ def build_demo_payload() -> dict:
             "containerCount": 24,
             "sender": "ПАО «СтальЮг»",
             "receiver": "Amirabad Steel Terminal",
-            "origin": "Астрахань",
+            "origin": "Волгоград",
             "destination": "Амирабад",
             "status": "in_transit",
             "plannedDeparture": "2026-11-09T20:00:00",
@@ -175,7 +177,7 @@ def build_demo_payload() -> dict:
             "containerCount": 4,
             "sender": "ООО «КаспийТекстиль»",
             "receiver": "Amirabad Textile LLC",
-            "origin": "Махачкала",
+            "origin": "Каспийск",
             "destination": "Амирабад",
             "status": "documents_issue",
             "plannedDeparture": "2026-11-12T07:00:00",
@@ -203,7 +205,7 @@ def build_demo_payload() -> dict:
             "containerCount": 12,
             "sender": "ООО «ЮгСтройСнаб»",
             "receiver": "Bandar Anzali Construction",
-            "origin": "Астрахань",
+            "origin": "Волгоград",
             "destination": "Энзели",
             "status": "delivered",
             "plannedDeparture": "2026-11-05T08:00:00",
@@ -233,26 +235,26 @@ def build_demo_payload() -> dict:
         },
         {
             "id": "SCT-1006",
-            "name": "Автозапчасти",
-            "category": "Автозапчасти",
-            "weight": 140,
-            "containerCount": 6,
-            "sender": "ООО «АвтоКаспий»",
-            "receiver": "Enzeli Motors",
-            "origin": "Махачкала",
-            "destination": "Энзели",
-            "status": "awaiting",
-            "plannedDeparture": "2026-11-13T09:00:00",
-            "plannedArrival": "2026-11-17T15:00:00",
-            "predictedArrival": "2026-11-17T15:00:00",
-            "currentLocation": "терминал Махачкала",
-            "currentPort": "Махачкала",
-            "currentTransport": "road",
+            "name": "Электроника коридора Север — Юг",
+            "category": "Промышленная электроника",
+            "weight": 210,
+            "containerCount": 9,
+            "sender": "ООО «МоскваТехЭкспорт»",
+            "receiver": "Mumbai Hub Logistics Pvt Ltd",
+            "origin": "Москва",
+            "destination": "Мумбаи",
+            "status": "in_transit",
+            "plannedDeparture": "2026-11-09T06:00:00",
+            "plannedArrival": "2026-11-22T18:00:00",
+            "predictedArrival": "2026-11-23T08:00:00",
+            "currentLocation": "перегон Москва — Астрахань (демо-оценка)",
+            "currentPort": None,
+            "currentTransport": "rail",
             "routeId": "rt-SCT-1006",
-            "templateId": "makh-anz-road-sea",
-            "transportSequence": ["road", "sea"],
+            "templateId": "moscow-mumbai-corridor",
+            "transportSequence": ["rail", "sea", "road", "sea"],
             "riskScore": 0,
-            "notes": "Отправление запланировано на 13 ноября.",
+            "notes": "Демонстрационная сквозная схема Москва → Астрахань → Энзели → Бендер-Аббас → Мумбаи. Расстояния и сроки — оценки для хакатона, не коммерческое предложение.",
             "preclearanceStatus": None,
             "preclearanceAt": None,
             "extraEvents": [],
@@ -267,7 +269,7 @@ def build_demo_payload() -> dict:
             "shipmentId": "SCT-1001",
             "name": "Поезд до Астрахани и морской рейс в Энзели",
             "templateId": "ast-anz-rail-sea",
-            "origin": "Астрахань",
+            "origin": "Саратов",
             "destination": "Энзели",
             "distance": 1280,
             "estimatedDuration": 0,
@@ -299,7 +301,7 @@ def build_demo_payload() -> dict:
             "shipmentId": "SCT-1003",
             "name": "Поезд до Астрахани и морской рейс в Амирабад",
             "templateId": "ast-amr-rail-sea",
-            "origin": "Астрахань",
+            "origin": "Волгоград",
             "destination": "Амирабад",
             "distance": 1360,
             "estimatedDuration": 0,
@@ -315,7 +317,7 @@ def build_demo_payload() -> dict:
             "shipmentId": "SCT-1004",
             "name": "Грузовик до Махачкалы и морской рейс в Амирабад",
             "templateId": "makh-amr-road-sea",
-            "origin": "Махачкала",
+            "origin": "Каспийск",
             "destination": "Амирабад",
             "distance": 1075,
             "estimatedDuration": 0,
@@ -329,33 +331,35 @@ def build_demo_payload() -> dict:
         {
             "id": "rt-SCT-1005",
             "shipmentId": "SCT-1005",
-            "name": "Поезд до Астрахани и морской рейс в Энзели",
+            "name": "Волгоград — Астрахань — Энзели (доставлен)",
             "templateId": "ast-anz-rail-sea",
-            "origin": "Астрахань",
+            "origin": "Волгоград",
             "destination": "Энзели",
-            "distance": 1280,
+            "distance": 1140,
             "estimatedDuration": 0,
-            "estimatedCost": 430000,
+            "estimatedCost": 410000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1005", 1, "Саратов", "Астрахань", "rail", "2026-11-05T08:00:00", "2026-11-06T14:00:00", 520, "completed", "ЖД участок завершён.", 0, "2026-11-06T14:00:00"),
+                _stage("rt-SCT-1005", 1, "Волгоград", "Астрахань", "rail", "2026-11-05T08:00:00", "2026-11-06T14:00:00", 380, "completed", "ЖД участок завершён.", 0, "2026-11-06T14:00:00"),
                 _stage("rt-SCT-1005", 2, "Астрахань", "Энзели", "sea", "2026-11-06T14:00:00", "2026-11-10T15:00:00", 760, "completed", "Рейс завершён.", 0, "2026-11-10T15:00:00", "2026-11-07T08:00:00"),
             ],
         },
         {
             "id": "rt-SCT-1006",
             "shipmentId": "SCT-1006",
-            "name": "Грузовик до Махачкалы и морской рейс в Энзели",
-            "templateId": "makh-anz-road-sea",
-            "origin": "Махачкала",
-            "destination": "Энзели",
-            "distance": 770,
+            "name": "Сквозной коридор Север — Юг: Москва → Мумбаи (демо)",
+            "templateId": "moscow-mumbai-corridor",
+            "origin": "Москва",
+            "destination": "Мумбаи",
+            "distance": 4850,
             "estimatedDuration": 0,
-            "estimatedCost": 310000,
+            "estimatedCost": 1850000,
             "carbonFootprint": 0,
             "stages": [
-                _stage("rt-SCT-1006", 1, "Каспийск", "Махачкала", "road", "2026-11-13T09:00:00", "2026-11-13T12:00:00", 30, "pending", "Запланирован автоподвоз.", 0),
-                _stage("rt-SCT-1006", 2, "Махачкала", "Энзели", "sea", "2026-11-13T12:00:00", "2026-11-17T15:00:00", 740, "pending", "Морской рейс после подвоза.", 0, None, "2026-11-13T20:00:00"),
+                _stage("rt-SCT-1006", 1, "Москва", "Астрахань", "rail", "2026-11-09T06:00:00", "2026-11-11T14:00:00", 1420, "in_progress", "Ж/д плечо до Каспия (оценка для демо).", 4),
+                _stage("rt-SCT-1006", 2, "Астрахань", "Энзели", "sea", "2026-11-11T14:00:00", "2026-11-13T20:00:00", 760, "pending", "Каспийский морской участок.", 0, None, "2026-11-12T18:00:00"),
+                _stage("rt-SCT-1006", 3, "Энзели", "Бендер-Аббас", "road", "2026-11-13T20:00:00", "2026-11-16T06:00:00", 1180, "pending", "Сухопутный транзит через Иран (демо-схема).", 0),
+                _stage("rt-SCT-1006", 4, "Бендер-Аббас", "Мумбаи", "sea", "2026-11-16T10:00:00", "2026-11-22T18:00:00", 920, "pending", "Морское плечо в Индию (оценка для демо).", 0, None, "2026-11-16T14:00:00"),
             ],
         },
     ]
@@ -372,13 +376,7 @@ def build_demo_payload() -> dict:
         _document("SCT-1004", "origin", "verified", "ORG-1004", "2026-11-11", True, "Сертификат приложен."),
     ]
     documents += _full_docs("SCT-1005", "2026-11-04")
-    documents += [
-        _document("SCT-1006", "waybill", "verified", "WAY-1006", "2026-11-11", True, "Накладная."),
-        _document("SCT-1006", "invoice", "verified", "INV-1006", "2026-11-11", True, "Инвойс."),
-        _document("SCT-1006", "packing", "verified", "PKG-1006", "2026-11-11", True, "Упаковочный лист."),
-        _document("SCT-1006", "declaration", "verified", "DEC-1006", "2026-11-11", True, "Декларация."),
-        _document("SCT-1006", "origin", "pending", "ORG-1006", "2026-11-11", True, "Ожидает проверки."),
-    ]
+    documents += _full_docs("SCT-1006", "2026-11-08")
 
     journal = [
         {
@@ -410,13 +408,11 @@ def seed_demo_if_empty(session: Session) -> bool:
     if count > 0:
         return False
 
+    from app.config import UPLOADS_DIR
+    from app.demo_reset import apply_demo
+
     data = load_state(session)
-    demo = build_demo_payload()
-    data["shipments"] = demo["shipments"]
-    data["routes"] = demo["routes"]
-    data["documents"] = demo["documents"]
-    data["journal"] = demo["journal"] + data.get("journal", [])
-    recalculate(data)
+    apply_demo(data, UPLOADS_DIR)
     save_state(session, data)
     session.commit()
     return True

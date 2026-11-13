@@ -1,28 +1,44 @@
 "use client";
 
-import type { AuthUser } from "@/lib/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from "react";
 import styles from "./Shell.module.css";
 
-const NAV = [
-  { href: "/", label: "Главная панель", icon: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z" },
-  { href: "/shipments", label: "Грузы", icon: "M12 22 3 17V7l9-5 9 5v10z M3 7l9 5 9-5 M12 12v10 M7.5 4.5l9 5" },
-  { href: "/map", label: "Карта перевозок", icon: "m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z M9 3v15 M15 6v15" },
-  { href: "/analytics", label: "AI-прогнозирование", icon: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z M5 15v6 M2 18h6 M19 2v4 M17 4h4" },
-  { href: "/routes", label: "Маршруты", icon: "M7 6h10a3.5 3.5 0 0 1 0 7h-9a3 3 0 0 0 0 6h9 M7 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M21 19a2 2 0 1 1-4 0 2 2 0 0 1 4 0z" },
-  { href: "/customs", label: "Таможня и документы", icon: "M6 3h8l4 4v14H6z M14 3v5h4 M9 12h6 M9 16h6" },
-  { href: "/ecology", label: "Экологическая аналитика", icon: "M20 4c-7 0-13 2-13 8a5 5 0 0 0 5 5c6 0 8-6 8-13z M4 21l10-10" },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  tone?: "logout";
+};
+
+const NAV: NavItem[] = [
+  { href: "/", label: "Главная панель", icon: "M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-7H10v7H5a1 1 0 0 1-1-1z" },
+  {
+    href: "/shipments",
+    label: "Грузы",
+    icon: "M5 9.5 12 5.5l7 4V18l-7 4-7-4V9.5z M12 5.5V22 M8.5 11.5v9.5 M15.5 11.5v9.5",
+  },
+  { href: "/map", label: "Карта перевозок", icon: "M12 21s6.2-4.4 6.2-10.5A6.2 6.2 0 1 0 5.8 10.5C5.8 16.6 12 21 12 21z M12 13.2a2.7 2.7 0 1 0 0-5.4 2.7 2.7 0 0 0 0 5.4z" },
+  { href: "/analytics", label: "AI-прогнозирование", icon: "M4 18.5l4.5-7 3.5 2.8 4-7.5 4 2.7" },
+  {
+    href: "/routes",
+    label: "Маршруты",
+    icon: "M7.25 16.75a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z M16.75 9.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5z M9.4 14.8c2.2-1.6 4.3-3.2 7.2-5.8",
+  },
+  { href: "/customs", label: "Таможня и документы", icon: "M7 3.5h7.5L19 8v12.5H7V3.5z M14.5 3.5V8H19 M10 12.5h8 M10 16h8" },
+  { href: "/ecology", label: "Экологическая аналитика", icon: "M12 20c-4.5-6.5-6.5-11.5-6-16 3.2 1.8 5 3.6 6 5.5 1.5-3.2 4-5.5 6-5.8-.2 5.5-2 10-6 16.3z" },
 ];
 
-const EXTRA = [
-  { href: "/notifications", label: "Уведомления", icon: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4" },
-  { href: "/profile", label: "Профиль", icon: "M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2" },
-  { href: "/logout", label: "Выход", icon: "M11 4H4v16h7 M9 12h11 M16 8l4 4-4 4" },
+const EXTRA: NavItem[] = [
+  { href: "/notifications", label: "Уведомления", icon: "M18 8.2A6 6 0 0 0 6 8.2c0 7.2-3.5 7.2-3.5 9.3h19c0-2.1-3.5-2.1-3.5-9.3z M9.5 21h5" },
+  { href: "/profile", label: "Профиль", icon: "M20 21v-1.8a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4V21 M12 11.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" },
+  { href: "/logout", label: "Выход", icon: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9", tone: "logout" },
 ];
 
+const SIDEBAR_KEY = "landway:sidebar-expanded";
 const mobileQuery = "(max-width: 760px)";
+
 function subscribeToViewport(onChange: () => void) {
   const media = window.matchMedia(mobileQuery);
   media.addEventListener("change", onChange);
@@ -31,22 +47,54 @@ function subscribeToViewport(onChange: () => void) {
 const isMobileViewport = () => window.matchMedia(mobileQuery).matches;
 const serverViewport = () => false;
 
-function Icon({ path }: { path: string }) {
+function readSidebarExpanded(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function NavIcon({ path, className }: { path: string; className?: string }) {
   return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d={path} />
     </svg>
   );
 }
 
-export function Shell({ children, user }: { children: ReactNode; user: AuthUser | null }) {
+export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const mobile = useSyncExternalStore(subscribeToViewport, isMobileViewport, serverViewport);
   const [desktopExpanded, setDesktopExpanded] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
   const expanded = mobile ? mobileExpanded : desktopExpanded;
   const overlay = mobile && mobileExpanded;
+
+  useEffect(() => {
+    setDesktopExpanded(readSidebarExpanded());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || mobile) return;
+    try {
+      localStorage.setItem(SIDEBAR_KEY, desktopExpanded ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [desktopExpanded, hydrated, mobile]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -70,44 +118,60 @@ export function Shell({ children, user }: { children: ReactNode; user: AuthUser 
     }
   }
 
-  function navLinks(items: typeof NAV) {
-    return items.map(({ href, label, icon }) => {
+  function navLinks(items: NavItem[]) {
+    return items.map(({ href, label, icon, tone }) => {
       const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
       return (
         <Link
           key={href}
           href={href}
           className={styles.link}
+          data-tone={tone}
           aria-current={active ? "page" : undefined}
           aria-label={label}
-          title={expanded ? undefined : label}
+          title={!expanded ? label : undefined}
           onClick={closeAfterNavigation}
         >
-          <Icon path={icon} />
           <span className={styles.label}>{label}</span>
+          <span className={styles.linkIconSlot}>
+            <NavIcon path={icon} className={styles.navIcon} />
+          </span>
         </Link>
       );
     });
   }
 
   return (
-    <div className={styles.shell} data-expanded={expanded}>
-      {overlay && <button type="button" className={styles.scrim} tabIndex={-1} aria-label="Закрыть боковую панель" onClick={() => { setMobileExpanded(false); toggle.current?.focus(); }} />}
+    <div className={styles.shell} data-expanded={expanded} data-hydrated={hydrated || undefined}>
+      {overlay && (
+        <button
+          type="button"
+          className={styles.scrim}
+          tabIndex={-1}
+          aria-label="Закрыть боковую панель"
+          onClick={() => {
+            setMobileExpanded(false);
+            toggle.current?.focus();
+          }}
+        />
+      )}
       <aside className={styles.rail} aria-label="Боковая панель Landway">
         <div className={styles.sidebar}>
-          <button
-            ref={toggle}
-            type="button"
-            className={styles.toggle}
-            aria-expanded={expanded}
-            aria-controls="landway-sidebar-navigation"
-            aria-label={expanded ? "Свернуть боковую панель" : "Развернуть боковую панель"}
-            title={expanded ? "Свернуть боковую панель" : "Развернуть боковую панель"}
-            onClick={() => mobile ? setMobileExpanded(value => !value) : setDesktopExpanded(value => !value)}
-          >
-            <img className={styles.monogram} src="/landway-mark.svg" alt="" width={34} height={34} />
-            <span className={styles.collapseIcon}><Icon path="M3 5h18v14H3z M9 5v14 M16 9l-3 3 3 3" /></span>
-          </button>
+          <div className={styles.sidebarHead}>
+            <button
+              ref={toggle}
+              type="button"
+              className={styles.toggle}
+              aria-expanded={expanded}
+              aria-controls="landway-sidebar-navigation"
+              aria-label={expanded ? "Свернуть боковую панель" : "Развернуть боковую панель"}
+              title={expanded ? "Свернуть боковую панель" : "Развернуть боковую панель"}
+              onClick={() => (mobile ? setMobileExpanded((value) => !value) : setDesktopExpanded((value) => !value))}
+            >
+              <img className={styles.monogram} src="/landway-mark.svg" alt="" width={44} height={44} />
+              <NavIcon path="M14 8l-4 4 4 4" className={styles.toggleIcon} />
+            </button>
+          </div>
           <div className={styles.wordmark}>
             <img src="/landway-wordmark.svg" alt="LANDWAY" width={445} height={58} />
             <span>Логист коридора Север — Юг</span>
@@ -117,12 +181,6 @@ export function Shell({ children, user }: { children: ReactNode; user: AuthUser 
               {navLinks(NAV)}
             </nav>
             <div className={styles.account}>
-              {user && (
-                <div className={styles.user}>
-                  <strong>{user.name}</strong>
-                  <span>{user.role}</span>
-                </div>
-              )}
               <nav className={styles.nav} aria-label="Аккаунт">
                 {navLinks(EXTRA)}
               </nav>

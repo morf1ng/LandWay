@@ -25,6 +25,8 @@ export type MapShipment = {
     nextLocation: string;
     transportType?: string;
     plannedArrival?: string;
+    actualArrival?: string | null;
+    delayHours?: number;
     status?: string;
     description?: string;
   }>;

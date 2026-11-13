@@ -20,6 +20,7 @@ export function ShipmentListRows({ items, hrefFor, onActivate }: Props) {
         return (
           <li key={item.id}>
             <a
+              id={`list-${item.id}`}
               className={styles.compactRow}
               href={hrefFor(item.id)}
               onClick={(event) => onActivate(event, item)}

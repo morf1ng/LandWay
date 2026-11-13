@@ -29,14 +29,21 @@ type Props = {
   shipments: MapShipment[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  overview: boolean;
+  corridor?: {
+    nodes: Array<{ name: string; lat: number; lon: number; kind: string }>;
+    segments: Array<{ from: string; to: string; mode: string }>;
+  };
 };
 
-function FitCorridor({ places }: { places: MapPlace[] }) {
+function FitCorridor({ places, corridor, overview }: { places: MapPlace[]; corridor?: Props["corridor"]; overview: boolean }) {
   const map = useMap();
   useEffect(() => {
-    const bounds = corridorBounds(places);
-    map.fitBounds(bounds, { padding: [36, 36], maxZoom: 7 });
-  }, [map, places]);
+    const bounds = overview && corridor?.nodes.length
+      ? L.latLngBounds(corridor.nodes.map((node) => [node.lat, node.lon] as [number, number]))
+      : L.latLngBounds(corridorBounds(places));
+    map.flyToBounds(bounds, { padding: [35, 35], maxZoom: overview ? 5 : 7, duration: 0.65 });
+  }, [map, places, corridor, overview]);
   return null;
 }
 
@@ -51,17 +58,17 @@ function MapAttributionBranding() {
   return null;
 }
 
-function FocusSelection({ shipment, places }: { shipment: MapShipment | null; places: MapPlace[] }) {
+function FocusSelection({ shipment, places, overview }: { shipment: MapShipment | null; places: MapPlace[]; overview: boolean }) {
   const map = useMap();
   useEffect(() => {
-    if (!shipment) return;
+    if (!shipment || overview) return;
     const points = routeSegments(shipment.stages, placeIndex(places)).flatMap((segment) => segment.points);
     if (points.length > 1) {
       map.flyToBounds(L.latLngBounds(points), { padding: [36, 36], maxZoom: 7, duration: 0.6 });
     } else {
       map.flyTo([shipment.position.lat, shipment.position.lon], 6, { duration: 0.6 });
     }
-  }, [map, places, shipment?.id]);
+  }, [map, places, shipment?.id, overview]);
   return null;
 }
 
@@ -98,11 +105,12 @@ const TRANSPORT_LINE: Record<string, { color: string; dash?: string }> = {
   road: { color: "#5d5768", dash: "4 6" },
 };
 
-export function CorridorMap({ places, shipments, selectedId, onSelect }: Props) {
+export function CorridorMap({ places, shipments, selectedId, onSelect, corridor, overview }: Props) {
   const index = useMemo(() => placeIndex(places), [places]);
   const selected = shipments.find((s) => s.id === selectedId) ?? null;
   const center = places[0] ? ([places[0].lat, places[0].lon] as [number, number]) : ([46.5, 48] as [number, number]);
   const segments = selected ? routeSegments(selected.stages, index) : [];
+  const corridorNodes = new Map(corridor?.nodes.map((node) => [node.name, node]) ?? []);
 
   return (
     <div className={styles.mapHost}>
@@ -119,8 +127,21 @@ export function CorridorMap({ places, shipments, selectedId, onSelect }: Props) 
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <FitCorridor places={places} />
-        <FocusSelection shipment={selected} places={places} />
+        <FitCorridor places={places} corridor={corridor} overview={overview} />
+        <FocusSelection shipment={selected} places={places} overview={overview} />
+
+        {overview && corridor?.segments.map((segment) => {
+          const from = corridorNodes.get(segment.from);
+          const to = corridorNodes.get(segment.to);
+          if (!from || !to) return null;
+          return <Polyline key={`${segment.from}-${segment.to}`} positions={[[from.lat, from.lon], [to.lat, to.lon]]} pathOptions={{ color: segment.mode === "sea" ? "#286b9e" : "#76658d", weight: 3, opacity: 0.8, dashArray: "7 8", lineCap: "round" }} />;
+        })}
+        {overview && corridor?.nodes.filter((node) => !index.has(node.name)).map((node) => (
+          <Marker key={node.name} position={[node.lat, node.lon]} icon={node.kind === "port" ? portIcon() : cityIcon()} title={node.name} alt={node.name}>
+            <Tooltip permanent direction="top" offset={[0, -8]} className="place-label">{node.name}</Tooltip>
+            <Popup><strong>{node.name}</strong><br />Узел обзорной схемы коридора</Popup>
+          </Marker>
+        ))}
 
         {places.map((place) => (
           <Marker
@@ -128,6 +149,8 @@ export function CorridorMap({ places, shipments, selectedId, onSelect }: Props) 
             position={[place.lat, place.lon]}
             icon={place.kind === "port" ? portIcon() : cityIcon()}
             zIndexOffset={place.kind === "port" ? 200 : 100}
+            title={`${place.kind === "port" ? "Порт" : "Узел"} ${place.name}`}
+            alt={place.name}
           >
             <Tooltip permanent direction="top" offset={[0, -8]} className="place-label">
               {place.name}
@@ -184,6 +207,8 @@ export function CorridorMap({ places, shipments, selectedId, onSelect }: Props) 
               position={[s.position.lat, s.position.lon]}
               icon={cargoIcon(color)}
               zIndexOffset={s.id === selectedId ? 500 : 300}
+              title={`Груз ${s.id}: ${s.position.name} (расчётное положение)`}
+              alt={`Груз ${s.id}`}
               eventHandlers={{
                 click: () => onSelect(s.id),
               }}

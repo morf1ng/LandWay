@@ -1,5 +1,6 @@
 :root {
-  --motion: cubic-bezier(0.22, 0.82, 0.24, 1);
+  --shipment-motion: cubic-bezier(0.22, 0.82, 0.24, 1);
+  --shipment-duration: 550ms;
 }
 
 [data-shared-shell] {
@@ -10,111 +11,89 @@
   view-transition-name: shipment-map;
 }
 
-::view-transition-group(shipment-shell),
-::view-transition-group(shipment-map) {
-  animation-duration: 540ms;
-  animation-timing-function: var(--motion);
+[data-shipment-transition]::view-transition-old(root) {
+  display: none;
 }
 
+[data-shipment-transition]::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(shipment-shell),
 ::view-transition-group(shipment-map) {
-  z-index: 3;
-  border-radius: 16px;
-  overflow: hidden;
-  background: #eef0e9;
+  animation-duration: var(--shipment-duration);
+  animation-timing-function: var(--shipment-motion);
+  border-radius: 17px;
+  overflow: clip;
 }
 
 ::view-transition-group(shipment-shell) {
-  z-index: 2;
-  border-radius: 17px;
-  overflow: hidden;
+  z-index: 3;
+  background: #fff;
 }
 
+::view-transition-group(shipment-map) {
+  z-index: 4;
+  background: #e8ebe3;
+}
+
+::view-transition-image-pair(shipment-shell),
 ::view-transition-image-pair(shipment-map) {
-  isolation: auto;
+  isolation: isolate;
+}
+
+::view-transition-old(shipment-shell),
+::view-transition-new(shipment-shell),
+::view-transition-old(shipment-map),
+::view-transition-new(shipment-map) {
+  animation-duration: var(--shipment-duration);
+  animation-timing-function: linear;
+  mix-blend-mode: normal;
+  width: 100%;
+  height: 100%;
 }
 
 ::view-transition-old(shipment-map),
-::view-transition-new(shipment-map),
-::view-transition-old(shipment-shell),
-::view-transition-new(shipment-shell) {
-  animation-duration: 540ms;
-  animation-timing-function: var(--motion);
-  mix-blend-mode: normal;
-  height: 100%;
+::view-transition-new(shipment-map) {
   object-fit: cover;
 }
 
 ::view-transition-old(shipment-shell),
-::view-transition-new(shipment-shell) {
-  object-fit: none;
-  object-position: left bottom;
+::view-transition-old(shipment-map) {
+  z-index: 1;
+  animation-name: shipment-snapshot-out;
 }
 
-::view-transition-old(shipment-map),
-::view-transition-old(shipment-shell) {
-  animation-name: shipment-shared-out;
+::view-transition-new(shipment-shell),
+::view-transition-new(shipment-map) {
+  animation: none;
 }
 
-::view-transition-new(shipment-map),
-::view-transition-new(shipment-shell) {
-  animation-name: shipment-shared-in;
+@keyframes shipment-snapshot-out {
+  52% { opacity: 1; }
+  to { opacity: 0; }
 }
 
-::view-transition-old(root) {
-  animation-duration: 190ms;
+.shipment-snapshot {
+  overflow: hidden;
+  border-radius: 17px;
 }
 
-::view-transition-new(root) {
-  animation-duration: 380ms;
+.shipment-snapshot-target {
+  transition: none !important;
 }
 
-[data-navigation="enter"] .reveal {
-  animation: shipment-reveal-in 0.26s ease-out 0.32s both;
-}
-
-@keyframes shipment-shared-out {
-  0%,
-  14% {
-    opacity: 1;
-  }
-  82%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes shipment-shared-in {
-  0% {
-    opacity: 0;
-  }
-  65%,
-  100% {
-    opacity: 1;
-  }
+[data-shipment-reveal] [data-shipment-reveal] {
+  animation: shipment-reveal-in 240ms ease 300ms both;
 }
 
 @keyframes shipment-reveal-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(shipment-shell),
-  ::view-transition-group(shipment-map),
-  ::view-transition-old(shipment-map),
-  ::view-transition-new(shipment-map),
-  ::view-transition-old(shipment-shell),
-  ::view-transition-new(shipment-shell) {
-    animation-duration: 1ms;
-  }
-
-  [data-navigation="enter"] .reveal {
+  [data-shipment-reveal] [data-shipment-reveal] {
     animation: none;
   }
 }

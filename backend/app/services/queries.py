@@ -54,6 +54,12 @@ def history_of(shipment: dict, route: dict) -> list[dict]:
     return events
 
 
+def infrastructure_status(data: dict) -> dict:
+    from app.services.telemetry import infrastructure_status as build_status
+
+    return build_status(data)
+
+
 def dashboard(data: dict) -> dict:
     views = [view_shipment(data, shipment) for shipment in data["shipments"]]
     def count(pred) -> int:
@@ -146,23 +152,21 @@ def map_payload(data: dict) -> dict:
             "label": "МТК «Север — Юг»: транскаспийская ветвь до Индии",
             "source": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1892221",
             "sourceName": "Министерство портов и судоходства Индии, 2023",
-            "note": "Обзорная схема узлов; линии между городами не являются точным путём судна, дороги или железной дороги. Грузы демо заканчиваются в портах Ирана.",
+            "note": "Обзорная схема узлов; линии между городами не являются точным путём судна, дороги или ЖД. Демо SCT-1006 показывает сквозную схему до Мумбаи.",
             "nodes": [
                 {"name": "Санкт-Петербург", "lat": 59.9343, "lon": 30.3351, "kind": "city"},
                 {"name": "Москва", "lat": 55.7558, "lon": 37.6173, "kind": "city"},
                 {"name": "Астрахань", "lat": 46.35, "lon": 48.04, "kind": "port"},
                 {"name": "Энзели", "lat": 37.47, "lon": 49.46, "kind": "port"},
-                {"name": "Тегеран", "lat": 35.6892, "lon": 51.3890, "kind": "city"},
-                {"name": "Чабахар", "lat": 25.2934, "lon": 60.6430, "kind": "port"},
+                {"name": "Бендер-Аббас", "lat": 27.1865, "lon": 56.2808, "kind": "port"},
                 {"name": "Мумбаи", "lat": 19.0760, "lon": 72.8777, "kind": "port"},
             ],
             "segments": [
                 {"from": "Санкт-Петербург", "to": "Москва", "mode": "land"},
                 {"from": "Москва", "to": "Астрахань", "mode": "land"},
                 {"from": "Астрахань", "to": "Энзели", "mode": "sea"},
-                {"from": "Энзели", "to": "Тегеран", "mode": "land"},
-                {"from": "Тегеран", "to": "Чабахар", "mode": "land"},
-                {"from": "Чабахар", "to": "Мумбаи", "mode": "sea"},
+                {"from": "Энзели", "to": "Бендер-Аббас", "mode": "land"},
+                {"from": "Бендер-Аббас", "to": "Мумбаи", "mode": "sea"},
             ],
         },
     }
@@ -173,10 +177,13 @@ def shipment_detail(data: dict, shipment_id: str) -> dict:
     if shipment is None:
         return {}
     route = _route(data, shipment)
+    from app.services.telemetry import stage_sources
+
     carbon = calculate(float(shipment["weight"]), route["stages"], data["emissionFactors"])
     return {
         "shipment": view_shipment(data, shipment),
         "route": route,
+        "stageSources": stage_sources(data, route),
         "prediction": _prediction(data, shipment_id),
         "documents": [item for item in data["documents"] if item["shipmentId"] == shipment_id],
         "history": history_of(shipment, route),
@@ -185,26 +192,44 @@ def shipment_detail(data: dict, shipment_id: str) -> dict:
 
 
 def analytics(data: dict) -> dict:
+    from app.services.action_playbook import build_action_plans
+    from app.services.historical_forecast import CORRIDOR_LABEL, backtest_report
+
     rows = []
     for shipment in data["shipments"]:
         prediction = _prediction(data, shipment["id"])
-        rows.append(
-            {
-                "id": shipment["id"],
-                "name": shipment["name"],
-                "route": f"{shipment['origin']} → {shipment['destination']}",
-                "probability": prediction["probability"],
-                "riskLevel": prediction["riskLevel"],
-                "reasons": prediction["reasons"],
-                "estimatedDelay": prediction["estimatedDelay"],
-                "predictedArrival": shipment["predictedArrival"],
-                "recommendation": prediction["recommendation"],
-                "calculatedAt": prediction["calculatedAt"],
-            }
-        )
+        row = {
+            "id": shipment["id"],
+            "name": shipment["name"],
+            "route": f"{shipment['origin']} → {shipment['destination']}",
+            "probability": prediction["probability"],
+            "riskLevel": prediction["riskLevel"],
+            "reasons": prediction["reasons"],
+            "estimatedDelay": prediction["estimatedDelay"],
+            "predictedArrival": shipment["predictedArrival"],
+            "recommendation": prediction["recommendation"],
+            "calculatedAt": prediction["calculatedAt"],
+        }
+        for key, value in prediction.items():
+            if key.startswith("history"):
+                row[key] = value
+        row["actionPlans"] = build_action_plans(row)
+        rows.append(row)
+    history_rows = data.get("corridorHistory") or []
     return {
-        "disclaimer": "Демонстрационная эвристика, а не обученная модель. Вероятность считается по загруженности порта, погоде, ветру, опозданию поезда, окну морского рейса и документам.",
+        "disclaimer": (
+            "Вероятность — это риск сорвать стыковку «поезд → паром»; задержка — на сколько часов "
+            "прибытие позже контрактного срока. Для коридора ж/д → паром (Энзели) при трёх и более похожих "
+            "рейсах в синтетической истории оценка задержки смешивается с эвристикой (55/45), иначе — только "
+            "эвристика. История демонстрационная, не статистика перевозчика."
+        ),
         "calculatedAt": data.get("lastRecalculatedAt"),
+        "corridorHistory": {
+            "source": "synthetic",
+            "corridor": CORRIDOR_LABEL,
+            "observationCount": len(history_rows),
+        },
+        "historyBacktest": backtest_report(data.get("corridorHistory")),
         "rows": rows,
     }
 

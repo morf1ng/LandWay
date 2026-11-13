@@ -84,7 +84,9 @@ def _shipment_from_dict(data: dict) -> dict:
 
 
 def _stage_to_dict(row: RouteStageRow) -> dict:
-    return {
+    from app.services.stage_schedule import ensure_schedule_fields
+
+    item = {
         "id": row.id,
         "routeId": row.route_id,
         "location": row.location,
@@ -92,6 +94,9 @@ def _stage_to_dict(row: RouteStageRow) -> dict:
         "transportType": row.transport_type,
         "plannedStart": row.planned_start,
         "plannedArrival": row.planned_arrival,
+        "schedulePlannedStart": row.schedule_planned_start,
+        "schedulePlannedArrival": row.schedule_planned_arrival,
+        "scheduleShipDeparture": row.schedule_ship_departure,
         "actualArrival": row.actual_arrival,
         "status": row.status,
         "distanceKm": row.distance_km,
@@ -99,6 +104,8 @@ def _stage_to_dict(row: RouteStageRow) -> dict:
         "shipDeparture": row.ship_departure,
         "description": row.description,
     }
+    ensure_schedule_fields(item)
+    return item
 
 
 def _port_to_dict(row: PortRow) -> dict:
@@ -134,24 +141,37 @@ def load_state(session: Session) -> dict:
                 "estimatedDuration": route.estimated_duration,
                 "estimatedCost": route.estimated_cost,
                 "carbonFootprint": route.carbon_footprint,
-                "stages": [_stage_to_dict(stage) for stage in route.stages],
+                "stages": [
+                    _stage_to_dict(stage)
+                    for stage in sorted(route.stages, key=lambda item: (item.planned_start, item.id))
+                ],
             }
         )
 
+    from app.data.corridor_history import HISTORY_VERSION
+    from app.services.historical_forecast import default_history
+
+    meta_row = session.get(AppMetaRow, "settings")
+    settings = (meta_row.value if meta_row else {}) or {}
+
+    prediction_extras = dict(settings.get("predictionExtras") or {})
     predictions = []
     for row in session.scalars(select(RiskPredictionRow)).all():
-        predictions.append(
-            {
-                "id": row.id,
-                "shipmentId": row.shipment_id,
-                "probability": row.probability,
-                "riskLevel": row.risk_level,
-                "reasons": list(row.reasons or []),
-                "estimatedDelay": row.estimated_delay,
-                "recommendation": row.recommendation,
-                "calculatedAt": row.calculated_at,
-            }
-        )
+        item = {
+            "id": row.id,
+            "shipmentId": row.shipment_id,
+            "probability": row.probability,
+            "riskLevel": row.risk_level,
+            "reasons": list(row.reasons or []),
+            "estimatedDelay": row.estimated_delay,
+            "recommendation": row.recommendation,
+            "calculatedAt": row.calculated_at,
+        }
+        extras = prediction_extras.get(row.shipment_id, {})
+        if extras.get("estimatedDelay") is None:
+            item["estimatedDelay"] = None
+        item.update(extras)
+        predictions.append(item)
 
     documents = []
     for row in session.scalars(select(DocumentRow)).all():
@@ -225,8 +245,6 @@ def load_state(session: Session) -> dict:
             }
         )
 
-    meta_row = session.get(AppMetaRow, "settings")
-    settings = (meta_row.value if meta_row else {}) or {}
     emission = settings.get("emissionFactors") or dict(DEFAULT_EMISSION_FACTORS)
     profile = settings.get("profile") or {}
     last_recalc = settings.get("lastRecalculatedAt")
@@ -245,6 +263,19 @@ def load_state(session: Session) -> dict:
         "profile": profile,
         "lastRecalculatedAt": last_recalc,
         "corridorChain": settings.get("corridorChain") or [],
+        "telemetry": settings.get("telemetry") or {
+            "events": {},
+            "portFeed": {},
+            "railFeed": {},
+            "externalConnected": False,
+            "lastUpdatedAt": None,
+        },
+        "corridorHistory": (
+            settings.get("corridorHistory")
+            if settings.get("corridorHistoryVersion") == HISTORY_VERSION and settings.get("corridorHistory")
+            else default_history()
+        ),
+        "preliminaryReviewCache": settings.get("preliminaryReviewCache") or {},
     }
 
 
@@ -317,6 +348,9 @@ def save_state(session: Session, data: dict) -> None:
                 "transport_type": stage["transportType"],
                 "planned_start": stage["plannedStart"],
                 "planned_arrival": stage["plannedArrival"],
+                "schedule_planned_start": stage.get("schedulePlannedStart"),
+                "schedule_planned_arrival": stage.get("schedulePlannedArrival"),
+                "schedule_ship_departure": stage.get("scheduleShipDeparture"),
                 "actual_arrival": stage.get("actualArrival"),
                 "status": stage["status"],
                 "distance_km": stage.get("distanceKm") or 0,
@@ -331,6 +365,7 @@ def save_state(session: Session, data: dict) -> None:
                     setattr(srow, key, value)
 
     session.execute(delete(RiskPredictionRow))
+    stored_extras: dict[str, dict] = {}
     for item in data["predictions"]:
         session.add(
             RiskPredictionRow(
@@ -344,6 +379,14 @@ def save_state(session: Session, data: dict) -> None:
                 calculated_at=item["calculatedAt"],
             )
         )
+        extra = {key: value for key, value in item.items() if key.startswith("history")}
+        for flag in ("etaUnknown", "portRestrictions", "scheduleDelayHours"):
+            if flag in item:
+                extra[flag] = item[flag]
+        if item.get("estimatedDelay") is None:
+            extra["estimatedDelay"] = None
+        if extra:
+            stored_extras[item["shipmentId"]] = extra
 
     doc_ids = {item["id"] for item in data["documents"]}
     for did in set(session.scalars(select(DocumentRow.id)).all()) - doc_ids:
@@ -457,11 +500,25 @@ def save_state(session: Session, data: dict) -> None:
             )
         )
 
+    from app.data.corridor_history import HISTORY_VERSION
+    from app.services.historical_forecast import default_history
+
     settings = {
         "emissionFactors": data.get("emissionFactors") or dict(DEFAULT_EMISSION_FACTORS),
         "profile": data.get("profile") or {},
         "lastRecalculatedAt": data.get("lastRecalculatedAt"),
         "corridorChain": data.get("corridorChain") or [],
+        "telemetry": data.get("telemetry") or {
+            "events": {},
+            "portFeed": {},
+            "railFeed": {},
+            "externalConnected": False,
+            "lastUpdatedAt": None,
+        },
+        "corridorHistory": data.get("corridorHistory") or default_history(),
+        "corridorHistoryVersion": HISTORY_VERSION,
+        "predictionExtras": stored_extras,
+        "preliminaryReviewCache": data.get("preliminaryReviewCache") or {},
     }
     meta = session.get(AppMetaRow, "settings")
     if meta is None:

@@ -30,6 +30,20 @@
   outline-offset: 3px;
 }
 
+.cardMapWrap {
+  position: relative;
+  flex: none;
+  height: 132px;
+  overflow: hidden;
+  background: #e8ebe3;
+  border-bottom: 1px solid #e3e1e9;
+  contain: layout;
+}
+
+.cardMapWrap[data-shared-map] {
+  isolation: isolate;
+}
+
 .mapPreview {
   position: relative;
   height: 132px;
@@ -38,21 +52,18 @@
   overflow: hidden;
 }
 
-.mapPreviewSkeleton {
+.mapPreviewEmbedded {
+  position: relative;
   width: 100%;
   height: 100%;
-  background: linear-gradient(110deg, #ece9f2 8%, #f6f5f8 18%, #ece9f2 33%);
-  background-size: 200% 100%;
-  animation: map-shimmer 1.2s ease-in-out infinite;
+  overflow: hidden;
+  background: #e8ebe3;
 }
 
-@keyframes map-shimmer {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: -100% 0;
-  }
+.mapPlaceholder {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .embeddedMap {
@@ -119,9 +130,14 @@
   overflow: hidden;
 }
 
-.mapShell .mapPanel {
+.detailMap {
+  position: absolute;
+  inset: 0;
+}
+
+.detailMap .mapPanel {
   height: 100%;
-  min-height: 320px;
+  min-height: 0;
   border: 0;
   border-radius: 0;
 }
@@ -227,6 +243,18 @@
   color: #746f7a;
 }
 
+.currentLeg {
+  display: block;
+  margin-top: 4px;
+  color: #6b4ce6;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cargoName {
   display: block;
   margin-top: 6px;
@@ -286,64 +314,62 @@
   display: inline-flex;
   flex-shrink: 0;
   align-items: stretch;
-  padding: 5px;
-  border: 1px solid #ddd8e8;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #faf9fc 0%, #ece9f2 100%);
-  box-shadow:
-    0 1px 2px #1c12300a,
-    inset 0 1px 0 #ffffffcc;
+  padding: 3px;
+  border: 1px solid var(--line, #e5e2eb);
+  border-radius: 11px;
+  background: #faf9fc;
+  box-shadow: 0 1px 3px #1c12300a;
 }
 
 .viewSwitchThumb {
   position: absolute;
-  top: 5px;
-  bottom: 5px;
-  left: 5px;
-  width: calc(50% - 5px);
-  border-radius: 999px;
-  background: linear-gradient(155deg, #6b2bff 0%, #4800ff 42%, #5a24ff 100%);
-  box-shadow:
-    0 6px 18px #4800ff45,
-    0 2px 4px #4800ff28,
-    inset 0 1px 0 #ffffff55;
-  transition: transform 0.32s cubic-bezier(0.22, 0.82, 0.24, 1);
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 8px;
+  border: 1px solid #d9ccf5;
+  background: var(--accent-soft, #f2edff);
+  box-shadow: none;
+  transition: transform 0.22s cubic-bezier(0.22, 0.82, 0.24, 1);
   pointer-events: none;
 }
 
 .viewSwitch[data-active="list"] .viewSwitchThumb {
-  transform: translateX(calc(100% + 5px));
+  transform: translateX(calc(100% + 3px));
 }
 
 .viewSwitch button {
   position: relative;
   z-index: 1;
   flex: 1 1 0;
-  min-width: 118px;
+  min-width: 96px;
+  min-height: 32px;
   border: 0;
   background: transparent;
-  padding: 11px 24px;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  color: #5d5768;
-  transition: color 0.2s ease;
-  border-radius: 999px;
+  color: var(--muted, #625e69);
+  transition: color 0.16s ease;
+  border-radius: 8px;
+  box-shadow: none;
 }
 
 .viewSwitch button:hover:not([aria-pressed="true"]) {
-  color: #3b3644;
+  color: #403b47;
 }
 
 .viewSwitch button:focus-visible {
-  outline: 2px solid #4800ff;
-  outline-offset: 2px;
+  outline: 3px solid #b69aff;
+  outline-offset: 1px;
 }
 
 .viewSwitch button[aria-pressed="true"] {
-  color: #fff;
-  text-shadow: 0 1px 1px #2a0080aa;
+  color: #3b00c9;
+  font-weight: 680;
 }
 
 .compactList {
@@ -439,17 +465,40 @@
 }
 
 .backLink {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto 44px;
   align-items: center;
-  gap: 6px;
+  height: 44px;
   margin-bottom: 14px;
-  color: #51495c;
+  padding-inline-start: 12px;
+  border-radius: 10px;
+  color: #44404a;
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.25;
   text-decoration: none;
-  font-weight: 600;
 }
 
 .backLink:hover {
-  color: #4800ff;
+  background: #f5f3f7;
+  color: #231f28;
+}
+
+.backLink:focus-visible {
+  outline: 2px solid var(--accent, #4800ff);
+  outline-offset: 2px;
+}
+
+.backLinkIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+}
+
+.backLinkIcon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .detailHeading {
@@ -478,7 +527,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.85fr);
   gap: 14px;
-  align-items: start;
 }
 
 .detailAside {
@@ -596,14 +644,54 @@
 .editForm textarea { display: block; width: 100%; min-height: 100px; margin-top: 8px; padding: 10px 12px; border: 1px solid #dcd8e3; border-radius: 10px; resize: vertical; }
 .editActions { display: flex; gap: 8px; margin-top: 12px; }
 .primaryButton { background: #4800ff !important; border-color: #4800ff !important; color: #fff !important; }
+
+.demoSimBox {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px dashed #cfc6e8;
+  border-radius: 12px;
+  background: #faf8ff;
+  display: grid;
+  gap: 10px;
+}
+
+.simButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.simulateButton {
+  justify-self: start;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid #4800ff;
+  border-radius: 10px;
+  background: #f2edff;
+  color: #3b00c9;
+  font-weight: 650;
+  box-shadow: none;
+}
+
+.simulateButton:hover:not(:disabled) {
+  background: #e8dfff;
+}
+
+.simulateButton:disabled {
+  opacity: 0.65;
+}
+
+.simToast {
+  margin: 0;
+  font-size: 13px;
+  color: #286245;
+}
 .primaryButton:hover { background: #3b00d6 !important; }
 .notes { margin: 12px 0 0 !important; color: #625d6a; font-size: 13px; }
 
 .mapShell {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   min-height: 320px;
-  height: 320px;
   border-radius: 17px;
   overflow: hidden;
   border: 1px solid #e3e1e9;
@@ -618,6 +706,10 @@
 }
 
 @media (max-width: 900px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
   .compactRow {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
@@ -654,10 +746,6 @@
     grid-template-columns: 1fr;
   }
 
-  .detailGrid {
-    grid-template-columns: 1fr;
-  }
-
   .mapPanel {
     min-height: 265px;
   }
@@ -681,3 +769,46 @@
     transition: none;
   }
 }
+
+.stageNow,
+.connectionBox,
+.nextAction {
+  display: grid;
+  gap: 3px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #e3e1e9;
+  border-radius: 12px;
+  background: #fbfaff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.stageNow small,
+.connectionBox small,
+.nextAction small { color: #625d69; font-size: 12px; }
+
+.connectionBox { border-color: #bdddc8; background: #f3faf5; }
+.connectionBox[data-missed] { border-color: #ecc5b4; background: #fff0e9; color: #7d3420; }
+
+.nextAction { border-color: #d9cdfb; background: #f7f3ff; }
+.nextAction p { margin: 0 0 8px; font-weight: 650; }
+.nextAction a {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid #4800ff;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.stageList { display: grid; gap: 10px; margin: 0; padding-left: 20px; }
+.stageList li { overflow-wrap: anywhere; }
+.stageList li[data-status="completed"] { color: #625d69; }
+.stageList li[data-status="delayed"] b { color: #9c442d; }
+
+.preclearanceStatus { margin: 0 0 10px; font-size: 13px; overflow-wrap: anywhere; }
+.preclearanceStale { color: #9c442d; }

@@ -5,7 +5,11 @@ export type InfrastructurePort = {
   workload?: number;
   waitingShipments?: number;
   delayNote?: string;
-  sourceKind?: "live" | "demo";
+  departureStatus?: "open" | "departure_closed";
+  restrictionStartsAt?: string | null;
+  restrictionEndsAt?: string | null;
+  restrictionNote?: string | null;
+  sourceKind?: "live" | "demo" | "simulation";
   sourceName?: string;
   observedAt?: string;
 };
@@ -15,6 +19,7 @@ export type InfrastructureRailStatus = {
   to: string;
   workload?: number;
   delayMinutes?: number;
+  sourceKind?: "live" | "demo" | "simulation";
   sourceName: string;
   observedAt: string;
 };
@@ -22,6 +27,8 @@ export type InfrastructureRailStatus = {
 export type InfrastructureSnapshot = {
   ports: InfrastructurePort[];
   rail: InfrastructureRailStatus[];
+  externalConnected?: boolean;
+  lastUpdatedAt?: string;
 };
 
 export type InfrastructureStage = {
@@ -37,10 +44,14 @@ export type RouteInfrastructure = {
   rail: InfrastructureStage[];
 };
 
-/** Opt-in endpoint. The backend team can add it without changing the UI. */
+/** Оперативный статус инфраструктуры (opt-out через NEXT_PUBLIC_INFRASTRUCTURE_STATUS_ENABLED=false). */
 export async function loadLiveInfrastructure(): Promise<InfrastructureSnapshot | null> {
-  if (process.env.NEXT_PUBLIC_INFRASTRUCTURE_STATUS_ENABLED !== "true") return null;
-  return apiGet<InfrastructureSnapshot>("/infrastructure/status");
+  if (process.env.NEXT_PUBLIC_INFRASTRUCTURE_STATUS_ENABLED === "false") return null;
+  try {
+    return await apiGet<InfrastructureSnapshot>("/infrastructure/status");
+  } catch {
+    return null;
+  }
 }
 
 /** Only infrastructure touched by the selected route is shown. */

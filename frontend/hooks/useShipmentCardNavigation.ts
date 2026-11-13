@@ -1,84 +1,81 @@
 "use client";
 
-import { useCallback, useEffect, useState, type MouseEvent } from "react";
-import { flushSync } from "react-dom";
+import { useLayoutEffect, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { ShipmentCardData } from "@/lib/shipments/format";
+import { saveListPrefs, type ShipmentListPrefs } from "@/lib/shipments/listStorage";
 import {
-  clearSharedShipment,
-  popScrollY,
-  readSharedShipment,
-  saveListPrefs,
-  saveScrollY,
-  setSharedShipment,
-  type ShipmentListPrefs,
-} from "@/lib/shipments/listStorage";
-import { isPlainLeftClick, navigateWithViewTransition } from "@/lib/shipments/navigation";
+  getReturningCard,
+  getShipmentOrigin,
+  isNavigationLocked,
+  isPlainLeftClick,
+  linkShipmentHistory,
+  navigateWithViewTransition,
+  rememberShipmentOrigin,
+  restoreShipmentOrigin,
+  type ShipmentListHref,
+} from "@/lib/shipments/navigation";
 
-export function useShipmentCardNavigation(fromList: "shipments" | "dashboard", prefs?: ShipmentListPrefs) {
+export function useShipmentCardNavigation(href: ShipmentListHref, ready: boolean, prefs?: ShipmentListPrefs) {
   const router = useRouter();
-  const [sharedId, setSharedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      history.scrollRestoration = "manual";
-    }
-    const sid = readSharedShipment();
-    if (sid) setSharedId(sid);
-    const y = popScrollY();
-    if (y > 0) {
-      requestAnimationFrame(() => window.scrollTo(0, y));
-    }
-    const timer = window.setTimeout(() => clearSharedShipment(), 650);
-    return () => window.clearTimeout(timer);
-  }, []);
+  useLayoutEffect(() => {
+    if (ready) restoreShipmentOrigin(href);
+  }, [href, ready]);
 
-  const openCard = useCallback(
-    (event: MouseEvent<HTMLAnchorElement>, item: ShipmentCardData) => {
-      if (!isPlainLeftClick(event)) return;
-      event.preventDefault();
-      saveScrollY();
-      if (prefs) saveListPrefs(prefs);
-      setSharedShipment(item.id, fromList);
-      const href = `/shipments/${encodeURIComponent(item.id)}`;
-      const canShare = Boolean(document.getElementById(`list-${item.id}`));
-      navigateWithViewTransition(
-        router,
-        href,
-        "enter",
-        () => {
-          if (canShare) flushSync(() => setSharedId(item.id));
-        },
-        undefined
-      );
-    },
-    [router, fromList, prefs]
-  );
+  function openCard(event: MouseEvent<HTMLAnchorElement>, item: ShipmentCardData) {
+    if (!isPlainLeftClick(event)) return;
+    event.preventDefault();
+    if (isNavigationLocked()) return;
 
-  return { sharedId, openCard };
+    if (prefs) saveListPrefs(prefs);
+    rememberShipmentOrigin(item, href);
+    const detailHref = event.currentTarget.pathname;
+    const source = event.currentTarget.matches("[data-shipment-card]") ? event.currentTarget : null;
+    void navigateWithViewTransition({
+      source,
+      destination: () => {
+        const map = document.getElementById(`detail-map-${item.id}`);
+        if (map) window.scrollTo({ top: 0, behavior: "instant" });
+        return map;
+      },
+      mode: "enter",
+      navigate: () => router.push(detailHref),
+    });
+  }
+
+  return { openCard, returningId: getReturningCard(href) };
 }
 
 export function useShipmentDetailNavigation(id: string) {
   const router = useRouter();
-  const [shared, setShared] = useState(false);
+  const origin = getShipmentOrigin(id);
+  const backHref = origin?.href ?? "/shipments";
 
-  useEffect(() => {
-    setShared(readSharedShipment() === id);
-    const timer = window.setTimeout(() => clearSharedShipment(), 650);
-    return () => window.clearTimeout(timer);
-  }, [id]);
+  useLayoutEffect(() => {
+    if (origin) linkShipmentHistory(id);
+  }, [id, origin]);
 
-  const goBack = useCallback(
-    (event: MouseEvent<HTMLAnchorElement>, href: string) => {
-      if (!isPlainLeftClick(event)) return;
-      event.preventDefault();
-      setSharedShipment(id, href === "/" ? "dashboard" : "shipments");
-      navigateWithViewTransition(router, href, "return", () => {
-        flushSync(() => setShared(true));
-      });
-    },
-    [router, id]
-  );
+  function goBack(event: MouseEvent<HTMLAnchorElement>) {
+    if (!isPlainLeftClick(event)) return;
+    event.preventDefault();
+    if (isNavigationLocked()) return;
 
-  return { shared, goBack };
+    if (!origin) {
+      router.push(backHref);
+      return;
+    }
+
+    void navigateWithViewTransition({
+      source: document.getElementById(`detail-map-${id}`),
+      destination: () => {
+        const card = document.getElementById(`list-${id}`);
+        return card?.matches("[data-shipment-card]") ? card : null;
+      },
+      mode: "return",
+      navigate: () => router.back(),
+    });
+  }
+
+  return { preview: origin?.item, backHref, goBack };
 }

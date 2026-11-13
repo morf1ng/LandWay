@@ -11,7 +11,7 @@ type Props = {
 
 export function ViewToggle({ value, onChange }: Props) {
   return (
-    <div className={styles.viewSwitch} data-active={value} role="group" aria-label="Вид: карточки или список">
+    <div className={`viewSwitch ${styles.viewSwitch}`} data-active={value} role="group" aria-label="Вид: карточки или список">
       <span className={styles.viewSwitchThumb} aria-hidden="true" />
       <button type="button" aria-pressed={value === "cards"} onClick={() => onChange("cards")}>
         Карточки

@@ -1,6 +1,7 @@
 node_modules
 .next
 backend/.venv
+backend/.secrets/
 backend/data/
 backend/uploads/*
 !backend/uploads/.gitkeep

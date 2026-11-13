@@ -9,11 +9,11 @@ import styles from "./shipmentCards.module.css";
 type Props = {
   item: ShipmentCardData;
   href: string;
-  shared?: boolean;
+  eagerMap?: boolean;
   onActivate: (event: MouseEvent<HTMLAnchorElement>, item: ShipmentCardData) => void;
 };
 
-export function ShipmentCard({ item, href, shared, onActivate }: Props) {
+export function ShipmentCard({ item, href, eagerMap, onActivate }: Props) {
   const statusText = statusLabel[item.status] ?? item.status;
   const riskText = riskLabel[item.riskLevel] ?? item.riskLevel;
 
@@ -22,11 +22,13 @@ export function ShipmentCard({ item, href, shared, onActivate }: Props) {
       id={`list-${item.id}`}
       className={styles.shipmentCard}
       href={href}
-      data-shared-shell={shared ? true : undefined}
+      data-shipment-card
       aria-label={shipmentCardAriaLabel(item, statusText, riskText)}
       onClick={(event) => onActivate(event, item)}
     >
-      <RoutePreview origin={item.origin} destination={item.destination} sharedMap={shared} />
+      <div className={styles.cardMapWrap} data-shipment-map>
+        <RoutePreview origin={item.origin} destination={item.destination} embedded eager={eagerMap} />
+      </div>
       <div className={styles.cardBody}>
         <div className={styles.cardTop}>
           <span className={styles.shipmentId}>{item.id}</span>
@@ -37,6 +39,11 @@ export function ShipmentCard({ item, href, shared, onActivate }: Props) {
         <strong className={styles.shipmentRoute}>
           {item.origin} <span aria-hidden="true">→</span> {item.destination}
         </strong>
+        {item.currentLeg ? (
+          <span className={styles.currentLeg}>
+            Текущий участок: {item.currentLeg}
+          </span>
+        ) : null}
         <span className={styles.cargoName}>{item.name}</span>
         <div className={styles.cardBottom}>
           <span>

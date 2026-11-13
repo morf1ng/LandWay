@@ -5,8 +5,9 @@ type Row = {
   name: string;
   origin: string;
   destination: string;
+  currentLocation?: string;
   status: string;
-  predictedArrival: string;
+  predictedArrival: string | null;
   riskLevel: string;
   probability: number;
 };
@@ -17,6 +18,7 @@ export function toShipmentCardData(row: Row): ShipmentCardData {
     name: row.name,
     origin: row.origin,
     destination: row.destination,
+    currentLeg: row.currentLocation || undefined,
     status: row.status,
     predictedArrival: row.predictedArrival,
     riskLevel: row.riskLevel,
