@@ -180,6 +180,8 @@ def shipment_detail(data: dict, shipment_id: str) -> dict:
     from app.services.telemetry import stage_sources
 
     carbon = calculate(float(shipment["weight"]), route["stages"], data["emissionFactors"])
+    from app.services.corridor_contract import signature_of
+
     return {
         "shipment": view_shipment(data, shipment),
         "route": route,
@@ -188,6 +190,7 @@ def shipment_detail(data: dict, shipment_id: str) -> dict:
         "documents": [item for item in data["documents"] if item["shipmentId"] == shipment_id],
         "history": history_of(shipment, route),
         "carbon": carbon,
+        "contract": signature_of(data, shipment_id) or {"signed": False},
     }
 
 

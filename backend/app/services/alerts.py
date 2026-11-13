@@ -62,4 +62,9 @@ def sync_notifications(data: dict, now: datetime) -> None:
                     "href": href,
                 }
             )
+    seen = {item["id"] for item in notifications}
+    for extra in data.get("scenarioNotices") or []:
+        if extra.get("id") and extra["id"] not in seen:
+            notifications.append(extra)
+            seen.add(extra["id"])
     data["notifications"] = notifications

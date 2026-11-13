@@ -3,7 +3,8 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from app.catalog import REQUIRED_DOCUMENT_TYPES
-from app.services.corridor_contract import execute, status, verify
+from app.services.corridor_contract import execute, sign_shipment, status, verify
+from app.services.operations import create_shipment
 
 
 class CorridorContractTests(TestCase):
@@ -68,3 +69,34 @@ class CorridorContractTests(TestCase):
             self.assertEqual(first["chain"]["height"], 2)
             self.assertEqual([block["shipmentId"] for block in first["recentBlocks"]], ["SCT-1"])
             self.assertEqual([block["shipmentId"] for block in second["recentBlocks"]], ["SCT-2"])
+
+    def test_signature_is_separate_from_document_review(self):
+        with TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            data = self.make_data(directory)
+            signed = sign_shipment(data, data["shipments"][0], "Логист")
+            self.assertEqual(signed["decision"], "shipment_signed")
+            reviewed = execute(data, "SCT-1", directory, "Логист")
+            self.assertTrue(reviewed["contract"]["signed"])
+            self.assertEqual(reviewed["contract"]["hash"], signed["hash"])
+            self.assertEqual(reviewed["shipmentBlockCount"], 1)
+            self.assertEqual(reviewed["latestBlock"]["decision"], "ready_for_review")
+            self.assertEqual(reviewed["chain"]["height"], 2)
+            self.assertTrue(reviewed["chain"]["valid"])
+
+    def test_create_shipment_requires_signature(self):
+        payload = {
+            "name": "Тест",
+            "category": "груз",
+            "weight": 1,
+            "containerCount": 1,
+            "sender": "А",
+            "receiver": "Б",
+            "origin": "Махачкала",
+            "destination": "Энзели",
+            "plannedDeparture": "2026-11-14T08:00:00",
+            "plannedArrival": "2026-11-18T18:00:00",
+            "transportSequence": ["road", "sea"],
+        }
+        with self.assertRaisesRegex(ValueError, "смарт-контракт"):
+            create_shipment({}, payload)

@@ -276,6 +276,8 @@ def load_state(session: Session) -> dict:
             else default_history()
         ),
         "preliminaryReviewCache": settings.get("preliminaryReviewCache") or {},
+        "telegramChats": settings.get("telegramChats") or [],
+        "scenarioNotices": settings.get("scenarioNotices") or [],
     }
 
 
@@ -519,6 +521,8 @@ def save_state(session: Session, data: dict) -> None:
         "corridorHistoryVersion": HISTORY_VERSION,
         "predictionExtras": stored_extras,
         "preliminaryReviewCache": data.get("preliminaryReviewCache") or {},
+        "telegramChats": data.get("telegramChats") or [],
+        "scenarioNotices": data.get("scenarioNotices") or [],
     }
     meta = session.get(AppMetaRow, "settings")
     if meta is None:

@@ -139,8 +139,10 @@ def _sync_doc_status(shipment: dict, problems: list[str]) -> None:
         shipment["status"] = "awaiting"
 
 
-def create_shipment(data: dict, payload: dict) -> dict:
+def create_shipment(data: dict, payload: dict, actor: str = "Логист") -> dict:
     fields = _validate_payload(payload)
+    if payload.get("contractSigned") is not True:
+        raise ValueError("Подпишите смарт-контракт, чтобы создать груз")
     moment = _now()
     shipment_id = _next_shipment_id(data)
     template = resolve_template(fields["origin"], fields["destination"], fields["transportSequence"])
@@ -184,7 +186,18 @@ def create_shipment(data: dict, payload: dict) -> dict:
     data["shipments"].append(shipment)
     data["routes"].append(route)
     data["documents"].extend(_empty_documents(shipment_id))
-    _journal(data, shipment_id, "shipment", "Создание груза", shipment_id, "Груз добавлен в общую базу, маршрут и предварительный риск рассчитаны.", moment)
+    from app.services.corridor_contract import sign_shipment
+
+    signed = sign_shipment(data, shipment, actor)
+    _journal(
+        data,
+        shipment_id,
+        "shipment",
+        "Создание груза",
+        shipment_id,
+        f"Смарт-контракт подписан ({signed['hash'][:12]}). Груз добавлен в общую базу, маршрут и предварительный риск рассчитаны.",
+        moment,
+    )
     recalculate(data, moment)
     return shipment
 

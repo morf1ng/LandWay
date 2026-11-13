@@ -84,6 +84,7 @@ def apply_demo(data: dict, uploads_dir: Path, anchor: datetime | None = None) ->
     data["documents"] = demo["documents"]
     data["journal"] = demo["journal"]
     data["notifications"] = []
+    data["scenarioNotices"] = []
     data["predictions"] = []
     data["ports"] = [
         {

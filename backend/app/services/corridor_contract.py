@@ -54,6 +54,61 @@ def _block_hash(block: dict) -> str:
     return _hash({key: value for key, value in block.items() if key != "hash"})
 
 
+def _append(chain: list[dict], fields: dict) -> dict:
+    integrity = verify(chain)
+    if not integrity["valid"]:
+        raise ValueError("Цепочка повреждена: запись заблокирована")
+    block = {
+        "index": len(chain),
+        "previousHash": chain[-1]["hash"] if chain else GENESIS,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "nonce": 0,
+        **fields,
+    }
+    while True:
+        digest = _block_hash(block)
+        if digest.startswith(DIFFICULTY):
+            block["hash"] = digest
+            break
+        block["nonce"] += 1
+    chain.append(block)
+    return block
+
+
+def shipment_terms(shipment: dict) -> dict:
+    return {
+        "shipmentId": shipment["id"],
+        "name": shipment.get("name") or "",
+        "sender": shipment.get("sender") or "",
+        "receiver": shipment.get("receiver") or "",
+        "origin": shipment.get("origin") or "",
+        "destination": shipment.get("destination") or "",
+        "weight": shipment.get("weight"),
+        "containerCount": shipment.get("containerCount"),
+        "plannedDeparture": shipment.get("plannedDeparture") or "",
+        "plannedArrival": shipment.get("plannedArrival") or "",
+        "transportSequence": shipment.get("transportSequence") or [],
+    }
+
+
+def signature_of(data: dict, shipment_id: str) -> dict | None:
+    blocks = [
+        block
+        for block in data.get("corridorChain") or []
+        if block.get("shipmentId") == shipment_id and block.get("decision") == "shipment_signed"
+    ]
+    if not blocks:
+        return None
+    block = blocks[0]
+    return {
+        "signed": True,
+        "hash": block["hash"],
+        "signedAt": block["createdAt"],
+        "actor": block.get("actor") or "",
+        "termsDigest": block.get("documentDigest") or "",
+    }
+
+
 def verify(chain: list[dict]) -> dict:
     previous = GENESIS
     for index, block in enumerate(chain):
@@ -79,7 +134,9 @@ def status(data: dict, shipment_id: str, uploads_dir: Path) -> dict:
     problems = [*checked["problems"], *[f"Файл недоступен: {item}" for item in unavailable_files]]
     chain = data.get("corridorChain") or []
     shipment_blocks = [block for block in chain if block["shipmentId"] == shipment_id]
-    latest = shipment_blocks[-1] if shipment_blocks else None
+    review_blocks = [block for block in shipment_blocks if block.get("decision") != "shipment_signed"]
+    latest = review_blocks[-1] if review_blocks else None
+    signature = signature_of(data, shipment_id)
     return {
         "shipmentId": shipment_id,
         "ready": not problems,
@@ -87,9 +144,10 @@ def status(data: dict, shipment_id: str, uploads_dir: Path) -> dict:
         "documentDigest": current["digest"],
         "documents": current["documents"],
         "latestBlock": latest,
-        "shipmentBlockCount": len(shipment_blocks),
-        "recentBlocks": list(reversed(shipment_blocks[-6:])),
+        "shipmentBlockCount": len(review_blocks),
+        "recentBlocks": list(reversed(review_blocks[-6:])),
         "snapshotMatches": latest is None or latest["documentDigest"] == current["digest"],
+        "contract": signature or {"signed": False},
         "chain": verify(chain),
         "network": "Локальный демореестр · 1 узел · без внешней сети",
         "verifierNote": "Имитация проверяющей стороны для хакатона, не таможенный орган",
@@ -98,27 +156,32 @@ def status(data: dict, shipment_id: str, uploads_dir: Path) -> dict:
 
 def execute(data: dict, shipment_id: str, uploads_dir: Path, actor: str) -> dict:
     chain = data.setdefault("corridorChain", [])
-    integrity = verify(chain)
-    if not integrity["valid"]:
-        raise ValueError("Цепочка повреждена: запись заблокирована")
     state = status(data, shipment_id, uploads_dir)
     decision = "ready_for_review" if state["ready"] else "needs_correction"
-    block = {
-        "index": len(chain),
-        "previousHash": chain[-1]["hash"] if chain else GENESIS,
-        "shipmentId": shipment_id,
-        "documentDigest": state["documentDigest"],
-        "decision": decision,
-        "problems": state["problems"],
-        "actor": actor,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "nonce": 0,
-    }
-    while True:
-        digest = _block_hash(block)
-        if digest.startswith(DIFFICULTY):
-            block["hash"] = digest
-            break
-        block["nonce"] += 1
-    chain.append(block)
+    _append(
+        chain,
+        {
+            "shipmentId": shipment_id,
+            "documentDigest": state["documentDigest"],
+            "decision": decision,
+            "problems": state["problems"],
+            "actor": actor,
+        },
+    )
     return status(data, shipment_id, uploads_dir)
+
+
+def sign_shipment(data: dict, shipment: dict, actor: str) -> dict:
+    chain = data.setdefault("corridorChain", [])
+    terms = shipment_terms(shipment)
+    return _append(
+        chain,
+        {
+            "shipmentId": shipment["id"],
+            "documentDigest": _hash(terms),
+            "decision": "shipment_signed",
+            "problems": [],
+            "actor": actor,
+            "terms": terms,
+        },
+    )

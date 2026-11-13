@@ -50,11 +50,15 @@ def list_shipments():
 
 
 @router.post("/shipments")
-def create_shipment(payload: dict):
+def create_shipment(payload: dict, user: dict = Depends(require_user)):
     holder: dict = {}
 
     def mutate(data):
-        holder["shipment"] = operations.create_shipment(data, payload)
+        holder["shipment"] = operations.create_shipment(
+            data,
+            payload,
+            actor=user.get("name") or user.get("username") or "Логист",
+        )
 
     _mutate(mutate)
     data = store.read()
@@ -435,3 +439,28 @@ def simulate_rail_delay(shipment_id: str, user: dict = Depends(require_user)):
     if not detail:
         raise HTTPException(status_code=404, detail="Груз не найден")
     return {"telemetry": holder["result"], "shipment": detail}
+
+
+@router.post("/shipments/{shipment_id}/simulate/random")
+def simulate_random_event(shipment_id: str, user: dict = Depends(require_user)):
+    from app.services.random_event import trigger_random_event
+
+    holder: dict = {}
+
+    def mutate(data):
+        holder["result"] = trigger_random_event(data, shipment_id)
+
+    _mutate(mutate)
+    return holder["result"]
+
+
+@router.get("/telegram/status")
+def telegram_status(user: dict = Depends(require_user)):
+    from app.services.telegram_bridge import bot_profile
+
+    data = store.read()
+    profile = bot_profile()
+    return {
+        **profile,
+        "subscribers": len(data.get("telegramChats") or []),
+    }
