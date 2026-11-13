@@ -490,6 +490,7 @@ def save_state(session: Session, data: dict) -> None:
                 setattr(row, key, value)
     for uid in set(db_users) - seen_users:
         session.delete(db_users[uid])
+    session.flush()
 
     session.execute(delete(SessionRow))
     for item in data["sessions"]:

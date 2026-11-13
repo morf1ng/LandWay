@@ -29,6 +29,14 @@ def default_users() -> list[dict]:
             "role": "Логист коридора Север — Юг",
             "organization": "Smart Caspian Transit",
         },
+        {
+            "id": "user-saxsafon",
+            "username": "saxsafon",
+            "passwordHash": hash_password("saxsafon"),
+            "name": "saxsafon",
+            "role": "Логист коридора Север — Юг",
+            "organization": "Smart Caspian Transit",
+        },
     ]
 
 
@@ -37,8 +45,10 @@ def ensure_auth_fields(data: dict) -> None:
         data["users"] = default_users()
     else:
         users = [item for item in data["users"] if item.get("username") != "admin"]
-        if not any(item.get("username") == "logist" for item in users):
-            users.append(default_users()[0])
+        known = {item.get("username") for item in users}
+        for user in default_users():
+            if user["username"] not in known:
+                users.append(user)
         data["users"] = users
     if "sessions" not in data:
         data["sessions"] = []
